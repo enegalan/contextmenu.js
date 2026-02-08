@@ -1,7 +1,7 @@
 :root {
   --cm-bg: #fff;
   --cm-fg: #1a1a1a;
-  --cm-radius: 6px;
+  --cm-radius: 12px;
   --cm-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   --cm-item-padding-x: 12px;
   --cm-item-padding-y: 8px;
