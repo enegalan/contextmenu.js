@@ -30,7 +30,10 @@ const menu = createContextMenu({
   ],
 });
 
-// Right-click
+// Attach to element: right-click (desktop) and long-press (touch)
+menu.bind(element);
+
+// Or wire manually
 element.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   menu.open(e);
@@ -50,7 +53,8 @@ Returns an instance with:
 - **`open(x?, y?)`** / **`open(event: MouseEvent)`** – Show menu at (x, y) or at the event’s client coordinates.
 - **`close()`** – Close the menu (idempotent).
 - **`toggle(x?, y?)`** – Open if closed, close if open.
-- **`destroy()`** – Remove DOM and listeners.
+- **`bind(element, options?)`** – Attach to an element: right-click opens on desktop, long-press (default 500 ms) opens on touch. Options: **`longPressMs?`** – delay in ms. Listeners are removed on **`destroy()`**.
+- **`destroy()`** – Remove DOM, bound listeners, and cleanup.
 - **`setMenu(menu)`** – Replace the menu tree for the next open.
 
 ### Config

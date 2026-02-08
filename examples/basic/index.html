@@ -46,7 +46,7 @@
     </span>
   </div>
   <div class="target" id="target">
-    <p>Right-click here to open the context menu.</p>
+    <p>Right-click or long-press here to open the context menu.</p>
   </div>
   <button type="button" id="btn">Open menu at button</button>
   <script type="module">
@@ -212,10 +212,7 @@
     function bindMenu() {
       const target = document.getElementById("target");
       const btn = document.getElementById("btn");
-      target.oncontextmenu = (e) => {
-        e.preventDefault();
-        menu.open(e);
-      };
+      menu.bind(target);
       btn.onclick = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         menu.open(rect.right, rect.bottom);

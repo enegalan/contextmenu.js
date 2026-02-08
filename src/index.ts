@@ -1,5 +1,6 @@
 export { createContextMenu } from "./contextmenu.js";
 export type {
+  BindOptions,
   ContextMenuConfig,
   ContextMenuInstance,
   MenuItem,

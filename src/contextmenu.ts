@@ -1,4 +1,5 @@
 import type {
+  BindOptions,
   ContextMenuConfig,
   ContextMenuInstance,
   MenuItem,
@@ -144,6 +145,7 @@ function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): vo
 }
 
 const SUBMENU_CLOSE_DELAY_MS = 150;
+const DEFAULT_LONG_PRESS_MS = 500;
 
 function createItemNode(
   item: MenuItem,
@@ -317,6 +319,14 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   const openSubmenus: Array<{ panel: HTMLElement; trigger: HTMLElement }> = [];
   let submenuHoverTimer: ReturnType<typeof setTimeout> | null = null;
   let outsideClickHandler: ((e: MouseEvent) => void) | null = null;
+
+  let boundElement: HTMLElement | null = null;
+  let boundContextmenu: ((e: MouseEvent) => void) | null = null;
+  let boundTouchstart: ((e: TouchEvent) => void) | null = null;
+  let boundTouchEndOrCancel: (e: TouchEvent) => void = (): void => {};
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  let longPressX = 0;
+  let longPressY = 0;
 
   function cancelLeaveAnimation(): void {
     if (leaveTimeout) {
@@ -690,7 +700,53 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
   wrapper.addEventListener("keydown", handleKeydown);
 
+  function clearLongPressTimer(): void {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function unbind(): void {
+    if (!boundElement) return;
+    clearLongPressTimer();
+    if (boundContextmenu) boundElement.removeEventListener("contextmenu", boundContextmenu);
+    if (boundTouchstart) boundElement.removeEventListener("touchstart", boundTouchstart);
+    boundElement.removeEventListener("touchend", boundTouchEndOrCancel);
+    boundElement.removeEventListener("touchcancel", boundTouchEndOrCancel);
+    boundElement = null;
+    boundContextmenu = null;
+    boundTouchstart = null;
+  }
+
+  function bind(el: HTMLElement, options?: BindOptions): void {
+    unbind();
+    const longPressMs = options?.longPressMs ?? DEFAULT_LONG_PRESS_MS;
+    boundContextmenu = (e: MouseEvent): void => {
+      e.preventDefault();
+      if ("pointerType" in e && (e as PointerEvent).pointerType === "touch") return;
+      open(e);
+    };
+    boundTouchstart = (e: TouchEvent): void => {
+      if (e.touches.length !== 1) return;
+      clearLongPressTimer();
+      longPressX = e.touches[0].clientX;
+      longPressY = e.touches[0].clientY;
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        open(longPressX, longPressY);
+      }, longPressMs);
+    };
+    boundTouchEndOrCancel = (): void => clearLongPressTimer();
+    el.addEventListener("contextmenu", boundContextmenu);
+    el.addEventListener("touchstart", boundTouchstart, { passive: true });
+    el.addEventListener("touchend", boundTouchEndOrCancel, { passive: true });
+    el.addEventListener("touchcancel", boundTouchEndOrCancel, { passive: true });
+    boundElement = el;
+  }
+
   function destroy(): void {
+    unbind();
     if (outsideClickHandler) {
       document.removeEventListener("mousedown", outsideClickHandler, true);
       outsideClickHandler = null;
@@ -712,6 +768,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       if (isOpen) close();
       else open(x ?? 0, y ?? 0);
     },
+    bind,
     destroy,
     setMenu,
   };

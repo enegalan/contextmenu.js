@@ -82,11 +82,16 @@ export interface ContextMenuConfig {
   onClose?: () => void;
 }
 
+export interface BindOptions {
+  longPressMs?: number;
+}
+
 export interface ContextMenuInstance {
   open(x?: number, y?: number): void;
   open(event: MouseEvent): void;
   close(): void;
   toggle(x?: number, y?: number): void;
+  bind(element: HTMLElement, options?: BindOptions): void;
   destroy(): void;
   setMenu(menu: MenuItem[]): void;
 }
