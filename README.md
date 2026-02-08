@@ -59,7 +59,7 @@ What you get from `createContextMenu(config)`:
 | `updateMenu(updater)` | Change the menu from current state. `updater` is a function: `(currentItems) => newItems`. See example below. |
 | `setTheme(theme)` | Change theme at runtime. `theme`: `{ class?: string, tokens?: { bg: "...", fg: "..." } }` or `undefined` to clear. |
 | `setPosition(position)` | Change position config for next open. `position`: `{ offset?: { x, y }, padding?: number, flip?: boolean, shift?: boolean }`. |
-| `setAnimation(animation)` | Change animation at runtime. `animation`: `{ enter?: number, leave?: number, disabled?: boolean }` (times in ms). |
+| `setAnimation(animation)` | Change animation at runtime. `animation`: `{ type?: "fade" | "slide", enter?, leave?, disabled? }` (times in ms). |
 | `bind(element, options?)` | Open menu on right-click / long-press. `options.longPressMs`: delay for long-press (default 500). |
 | `destroy()` | Remove menu and all listeners. |
 
@@ -79,7 +79,7 @@ menu.updateMenu((current) =>
 
 ```js
 menu.setTheme({ class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } });
-menu.setPosition({ padding: 12 });
+menu.setPosition({ padding: 12, zIndexBase: 10000, submenuZIndexStep: 1 });
 menu.setAnimation({ enter: 150, leave: 100 });
 menu.setTheme(undefined); // clear theme
 ```
@@ -96,15 +96,16 @@ What you pass to `createContextMenu({ ... })`:
 | `submenuArrow` | `boolean` or object | `true` = default arrow. Object: `{ icon?, size?, className?, opacity? }`. |
 | `spinner` | `{ icon?, size?, speed? }` | Default loading spinner. `icon`: SVG string or HTMLElement. `size`: px or CSS length. `speed`: ms per full rotation (default 600). Overridable per item via `loadingIcon`, `loadingSize`, `loadingSpeed`. |
 | `theme` | `{ class?, tokens? }` | `class`: CSS class on menu. `tokens`: e.g. `{ bg: "#111", fg: "#eee" }` (sets `--cm-bg`, `--cm-fg`). |
-| `animation` | `{ enter?, leave?, disabled? }` | `enter` / `leave`: ms or `{ duration, easing }`. `disabled: true` = no animation. |
-| `position` | `{ offset?, padding?, flip?, shift? }` | `offset`: `{ x, y }`. `padding`: viewport padding (px). `flip` / `shift`: keep menu in view. |
+| `animation` | `{ type?, enter?, leave?, disabled? }` | `type`: `"fade"` (opacity + scale) or `"slide"` (opacity + translate). `enter` / `leave`: ms or `{ duration, easing }`. `disabled: true` = no animation. |
+| `position` | `{ offset?, padding?, flip?, shift?, zIndexBase?, submenuZIndexStep? }` | `offset`: `{ x, y }`. `padding`: viewport padding (px). `flip` / `shift`: keep menu in view. `zIndexBase`: base z-index for root menu. `submenuZIndexStep`: increment per submenu level so each stacks above the previous (0 = no increment). |
 | `portal` | `HTMLElement` or function | Where to mount the menu. Default: `document.body`. |
 | `getAnchor` | `() => { x, y }` or `DOMRect` | Used when `open()` is called with no arguments. |
 | `submenuPlacement` | `"right"` \| `"left"` \| `"auto"` | Where to open submenus. `"auto"` uses RTL and viewport space (default). |
 | `bind` | `HTMLElement` or `{ element, options? }` | Same as calling `menu.bind(element, options)` after create. |
 | `onOpen` | `(event?: MouseEvent) => void` | Called when menu opens. `event` is set when opened by right-click or bind. |
-| `onClose` | `() => void` | Called when menu closes (after leave animation). |
-| `onBeforeOpen` | `(event?: MouseEvent) => boolean \| void \| Promise<...>` | Called before opening. Return `false` (or a Promise resolving to `false`) to cancel. |
+| `onClose` | `(context?: CloseContext) => void` | Called when menu closes (after leave animation). `context`: `{ selectedItem?, anchor }`. |
+| `onBeforeOpen` | `(event?, context?: OpenContext) => boolean \| void \| Promise<...>` | Called before opening. `context`: `{ x, y, target?, event? }`. Return `false` (or a Promise resolving to `false`) to cancel. |
+| `onAfterClose` | `(context?: CloseContext) => void` | Called after the menu is fully closed (same context as `onClose`). |
 | `onBeforeClose` | `() => boolean \| void \| Promise<...>` | Called before closing. Return `false` (or a Promise resolving to `false`) to cancel. |
 | `onItemHover` | `(payload: { item, nativeEvent }) => void` | Called when the user hovers or focuses an interactive item. |
 | `closeOnResize` | `boolean` | If `true`, menu closes on window resize. |
@@ -117,19 +118,20 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 **Action** — clickable row
 
-- `label` (string), `icon?`, `shortcut?`, `disabled?`, `loading?`, `variant?`, `onClick?`, `closeOnAction?`, `render?`
+- `label` (string), `icon?`, `shortcut?`, `badge?` (string, number, or `BadgeConfig`: `{ content?, className?, render? }` for full control), `disabled?`, `loading?`, `variant?`, `onClick?`, `closeOnAction?`, `render?`
 - `onClick` receives `{ item, nativeEvent, close }`. By default the menu closes on click; set `closeOnAction: false` to keep it open.
 - `loading`: when `true`, shows a spinner and blocks interaction (use `setMenu` / `updateMenu` to clear). Optional: `loadingIcon` (SVG or HTMLElement), `loadingSize` (px or CSS length), `loadingSpeed` (ms per rotation) to override config.
 - `variant`: `"default"` | `"danger"` | `"info"` | `"success"` | `"warning"` | `"muted"` (adds class e.g. `cm-item--danger`).
 
 **Link** — navigation item
 
-- `type: "link"`, `label`, `href`, optional `icon?`, `shortcut?`, `target?` (e.g. `"_blank"`), `rel?` (e.g. `"noopener"`), `disabled?`, `loading?`, `variant?`, `className?`
+- `type: "link"`, `label`, `href`, optional `icon?`, `shortcut?`, `badge?` (string, number, or `BadgeConfig`), `target?` (e.g. `"_blank"`), `rel?` (e.g. `"noopener"`), `disabled?`, `loading?`, `variant?`, `className?`
 - Renders as `<a>`. Ctrl/Cmd+click opens in new tab without preventing default.
 
 **Submenu** — opens a nested menu
 
-- `type: "submenu"`, `label`, `children` (array of items), `icon?`, `shortcut?`, `disabled?`, `variant?`, `submenuPlacement?`
+- `type: "submenu"`, `label`, `children` (array of items, or `() => MenuItem[]`, or `() => Promise<MenuItem[]>` for lazy loading), `icon?`, `shortcut?`, `badge?` (string, number, or `BadgeConfig`), `disabled?`, `variant?`, `submenuPlacement?`
+- `children` as a function is resolved when the submenu opens (useful for async data).
 - `submenuPlacement`: `"right"` | `"left"` | `"auto"` overrides the config for this submenu.
 - Opens on hover or Arrow Right / Enter.
 
@@ -176,9 +178,17 @@ createContextMenu({
 });
 ```
 
-**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-radius`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
+**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-radius`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. **Badge:** `--cm-badge-font-size`, `--cm-badge-opacity`, `--cm-badge-padding`, `--cm-badge-border-radius`, `--cm-badge-box-shadow`, `--cm-badge-background`, `--cm-badge-border-width`, `--cm-badge-border-style`, `--cm-badge-border-color`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
 
-**Animation variables** (also set by config `animation` at runtime): `--cm-enter-duration` (default 120ms), `--cm-leave-duration` (default 80ms), `--cm-enter-easing` (default ease-out), `--cm-leave-easing` (default ease-in). Override in CSS or via the `animation` option.
+**Animation variables** (also set by config `animation` at runtime): `--cm-enter-duration` (default 120ms), `--cm-leave-duration` (default 80ms), `--cm-enter-easing` (default ease-out), `--cm-leave-easing` (default ease-in). Override in CSS or via the `animation` option. Use `animation.type: "slide"` for a slide-in effect instead of fade+scale.
+
+**Badge:** Items with `badge` (action, link, submenu) render a pill to the right. Use a string/number, or `BadgeConfig`: `{ content?, className? }` for text + extra classes, or `{ render: () => HTMLElement }` for a custom element. Style the default pill with `.cm-item-badge`.
+
+---
+
+## Singleton behavior
+
+Only one context menu is open at a time. When a new menu is opened (from any instance created with this library), any other open menu is closed first.
 
 ---
 
@@ -194,11 +204,11 @@ createContextMenu({
 
 Build output is minified. Approximate sizes:
 
-| Asset | Minified | Gzipped |
+| Asset | Minified
 |-------|----------|---------|
-| `dist/index.js` (ESM) | ~23 KB | ~6.7 KB |
-| `dist/index.cjs` (CJS) | ~23 KB | ~6.9 KB |
-| `src/style.css` | ~7.5 KB | ~1.7 KB |
+| `dist/index.js` (ESM) | ~23 KB
+| `dist/index.cjs` (CJS) | ~23 KB
+| `src/style.css` | ~7.5 KB
 
 ---
 

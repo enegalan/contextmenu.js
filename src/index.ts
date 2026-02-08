@@ -1,6 +1,8 @@
 export { createContextMenu } from "./contextmenu.js";
 export type {
+  BadgeConfig,
   BindOptions,
+  CloseContext,
   ContextMenuBindConfig,
   ContextMenuConfig,
   ContextMenuInstance,
@@ -19,9 +21,12 @@ export type {
   MenuRadioSelectEvent,
   OpenAtElementOptions,
   OpenAtElementPlacement,
+  OpenContext,
   SpinnerConfig,
+  SubmenuChildren,
   SubmenuPlacement,
   ThemeConfig,
   AnimationConfig,
+  AnimationType,
   PositionConfig,
 } from "./types.js";

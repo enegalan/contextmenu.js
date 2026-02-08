@@ -1,5 +1,7 @@
 import type {
+  BadgeConfig,
   BindOptions,
+  CloseContext,
   ContextMenuConfig,
   ContextMenuInstance,
   MenuItem,
@@ -13,8 +15,10 @@ import type {
   MenuCheckboxChangeEvent,
   MenuRadioSelectEvent,
   OpenAtElementOptions,
+  OpenContext,
   SpinnerConfig,
   SubmenuArrowConfig,
+  SubmenuChildren,
 } from "./types.js";
 import type { MenuItemVariant } from "./types.js";
 import {
@@ -42,6 +46,7 @@ import {
   CLASS_CHECK,
   CLASS_CHECK_CUSTOM,
   CLASS_SHORTCUT,
+  CLASS_ITEM_BADGE,
   CLASS_ITEM_RADIO,
   CLASS_RADIO,
   CLASS_RADIO_CUSTOM,
@@ -60,7 +65,10 @@ import {
   CSS_VAR_LEAVE_EASING,
   CSS_VAR_SUBMENU_ARROW_SIZE,
   THEME_CLASS_DATA_ATTR,
+  ANIMATION_TYPE_DATA_ATTR,
 } from "./constants.js";
+
+const OPEN_MENU_INSTANCES = new Set<{ close(): Promise<void> }>();
 
 function getPortal(portal: ContextMenuConfig["portal"]): HTMLElement {
   if (portal == null) return document.body;
@@ -111,9 +119,20 @@ function normalizeItem(raw: MenuItem): MenuItem {
     else if ("label" in item && !("children" in item)) (item as MenuItemAction).type = "item";
   }
   if ("children" in item && item.type === "submenu") {
-    (item as MenuItemSubmenu).children = (item as MenuItemSubmenu).children.map(normalizeItem);
+    const rawChildren = (item as MenuItemSubmenu).children;
+    if (Array.isArray(rawChildren)) {
+      (item as MenuItemSubmenu).children = rawChildren.map(normalizeItem);
+    }
   }
   return item;
+}
+
+function resolveSubmenuChildren(children: SubmenuChildren): Promise<MenuItem[]> {
+  if (Array.isArray(children)) {
+    return Promise.resolve(children.map(normalizeItem));
+  }
+  const result = children();
+  return Promise.resolve(result).then((arr) => arr.map(normalizeItem));
 }
 
 function positionMenu(
@@ -159,6 +178,8 @@ function applyAnimationConfig(
 ): void {
   const anim = config.animation;
   if (!anim || anim.disabled) return;
+  const animType = anim.type === "slide" ? "slide" : "fade";
+  root.setAttribute(ANIMATION_TYPE_DATA_ATTR, animType);
   const enter = anim.enter ?? 120;
   const leave = anim.leave ?? 80;
   const enterMs = typeof enter === "number" ? enter : enter.duration;
@@ -178,6 +199,29 @@ function appendIcon(el: HTMLElement, icon: string | HTMLElement): void {
   if (typeof icon === "string") wrap.textContent = icon;
   else wrap.appendChild(icon);
   el.appendChild(wrap);
+}
+
+function appendBadge(el: HTMLElement, badge: BadgeConfig): void {
+  if (typeof badge === "string" || typeof badge === "number") {
+    const span = document.createElement("span");
+    span.setAttribute("aria-hidden", "true");
+    span.className = CLASS_ITEM_BADGE;
+    span.textContent = String(badge);
+    el.appendChild(span);
+    return;
+  }
+  if (badge.render) {
+    const node = badge.render();
+    if (!node.getAttribute("aria-hidden")) node.setAttribute("aria-hidden", "true");
+    el.appendChild(node);
+    return;
+  }
+  const span = document.createElement("span");
+  span.setAttribute("aria-hidden", "true");
+  span.className = CLASS_ITEM_BADGE;
+  if (badge.className) span.classList.add(...badge.className.trim().split(/\s+/));
+  span.textContent = String(badge.content ?? "");
+  el.appendChild(span);
 }
 
 function sizeToCss(size: number | string): string {
@@ -505,6 +549,7 @@ function createItemNode(
       sc.textContent = formatShortcutForDisplay(sub.shortcut);
       el.appendChild(sc);
     }
+    if (sub.badge !== undefined) appendBadge(el, sub.badge);
     if (arrowConfig) appendSubmenuArrow(el, arrowConfig);
 
     const fireSubmenuHover = (e: MouseEvent | FocusEvent): void => {
@@ -559,6 +604,7 @@ function createItemNode(
       sc.textContent = formatShortcutForDisplay(linkItem.shortcut);
       el.appendChild(sc);
     }
+    if (linkItem.badge !== undefined) appendBadge(el, linkItem.badge);
     (el as unknown as { _cmItem?: MenuItem })._cmItem = linkItem;
     el.setAttribute("role", "menuitem");
     el.setAttribute("tabindex", "-1");
@@ -626,6 +672,7 @@ function createItemNode(
       sc.textContent = formatShortcutForDisplay(action.shortcut);
       el.appendChild(sc);
     }
+    if (action.badge !== undefined) appendBadge(el, action.badge);
   }
   (el as unknown as { _cmItem?: MenuItem })._cmItem = action;
   el.setAttribute("role", "menuitem");
@@ -704,7 +751,10 @@ function deepCloneMenu(items: MenuItem[]): MenuItem[] {
   return items.map((item) => {
     const clone = { ...item } as MenuItem;
     if ("children" in clone && clone.type === "submenu") {
-      (clone as MenuItemSubmenu).children = deepCloneMenu((clone as MenuItemSubmenu).children);
+      const subChildren = (clone as MenuItemSubmenu).children;
+      (clone as MenuItemSubmenu).children = Array.isArray(subChildren)
+        ? deepCloneMenu(subChildren)
+        : subChildren;
     }
     return clone;
   });
@@ -803,6 +853,10 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
   applyThemeToElement(root, currentConfig.theme);
   applyAnimationConfig(root, currentConfig);
+  const posConfig = currentConfig.position;
+  if (posConfig?.zIndexBase != null) {
+    root.style.zIndex = String(posConfig.zIndexBase);
+  }
   wrapper.appendChild(root);
 
   const submenuArrowConfig = normalizeSubmenuArrow(currentConfig.submenuArrow);
@@ -829,6 +883,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   let openPromiseResolve: ((value: MenuItem | undefined) => void) | null = null;
   let closePromiseResolve: (() => void) | null = null;
 
+  const self = { close: (): Promise<void> => realClose() };
+
   function cancelLeaveAnimation(): void {
     if (leaveTimeout) {
       clearTimeout(leaveTimeout);
@@ -842,6 +898,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function onFullyClosed(): void {
+    OPEN_MENU_INSTANCES.delete(self);
     openPromiseResolve?.(lastSelectedItem);
     openPromiseResolve = null;
     closePromiseResolve?.();
@@ -878,6 +935,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
           const anim = currentConfig.animation;
           const rawLeave = anim?.leave ?? 80;
           const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
+          const closeContext: CloseContext = { selectedItem: lastSelectedItem, anchor: lastAnchor };
 
           if (leaveMs > 0 && !anim?.disabled) {
             root.classList.remove(ROOT_OPEN_CLASS);
@@ -893,7 +951,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
               root.style.display = "none";
               wrapper.remove();
               onFullyClosed();
-              currentConfig.onClose?.();
+              currentConfig.onClose?.(closeContext);
+              currentConfig.onAfterClose?.(closeContext);
               if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
             };
             leaveTransitionHandler = onEnd;
@@ -903,7 +962,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
             root.style.display = "none";
             wrapper.remove();
             onFullyClosed();
-            currentConfig.onClose?.();
+            currentConfig.onClose?.(closeContext);
+            currentConfig.onAfterClose?.(closeContext);
             if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
           }
         }
@@ -978,7 +1038,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     const t = setTimeout(onEnd, leaveMs + 50);
   }
 
-  function openSubmenuPanel(sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
+  async function openSubmenuPanel(sub: MenuItemSubmenu, triggerEl: HTMLElement): Promise<void> {
     let containIndex = -1;
     if (root.contains(triggerEl)) {
       containIndex = -1;
@@ -994,6 +1054,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       const { panel: p, trigger: t } = openSubmenus[j];
       closeSubmenuWithAnimation(p, t, { clearOpenSubmenu: true });
     }
+    const resolvedChildren = await resolveSubmenuChildren(sub.children);
     const panel = document.createElement("div");
     panel.setAttribute("role", "menu");
     panel.setAttribute("aria-label", sub.label);
@@ -1003,9 +1064,14 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     panel.addEventListener("mouseenter", cancelSubmenuClose);
     applyThemeToElement(panel, currentConfig.theme);
     applyAnimationConfig(panel, currentConfig);
+    const step = currentConfig.position?.submenuZIndexStep ?? 0;
+    const base = currentConfig.position?.zIndexBase ?? 9999;
+    if (step > 0) {
+      panel.style.zIndex = String(base + (openSubmenus.length + 1) * step);
+    }
 
-    sub.children.forEach((child) => {
-      const node = createItemNode(child, closeWithSelection, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent, (it, ev) => currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), getSpinnerOptions);
+    resolvedChildren.forEach((child) => {
+      const node = createItemNode(child, closeWithSelection, (subItem, el) => void openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent, (it, ev) => currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), getSpinnerOptions);
       if (node) panel.appendChild(node);
     });
 
@@ -1061,7 +1127,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       submenuHoverTimer = null;
       const currentTop = openSubmenus[openSubmenus.length - 1];
       if (currentTop && currentTop.trigger === triggerEl) return;
-      openSubmenuPanel(sub, triggerEl);
+      void openSubmenuPanel(sub, triggerEl);
     }, SUBMENU_HOVER_DELAY_MS);
   }
 
@@ -1114,7 +1180,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function triggerSubmenu(sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
-    openSubmenuPanel(sub, triggerEl);
+    void openSubmenuPanel(sub, triggerEl);
   }
 
   function refreshContent(): void {
@@ -1172,12 +1238,21 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
             yCoord = y ?? 0;
           }
         }
-        const allow = await Promise.resolve(currentConfig.onBeforeOpen?.(openEvent));
+        const openContext: OpenContext = {
+          x,
+          y: yCoord,
+          target: openEvent?.target instanceof Element ? openEvent.target : null,
+          event: openEvent,
+        };
+        const allow = await Promise.resolve(currentConfig.onBeforeOpen?.(openEvent, openContext));
         if (allow === false) {
           openPromiseResolve?.(undefined);
           openPromiseResolve = null;
           return;
         }
+        OPEN_MENU_INSTANCES.add(self);
+        const others = [...OPEN_MENU_INSTANCES].filter((o) => o !== self);
+        await Promise.all(others.map((o) => o.close()));
         cancelLeaveAnimation();
         if (isOpen) await realClose();
         lastAnchor = { x, y: yCoord };
@@ -1250,7 +1325,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       case "ArrowRight": {
         e.preventDefault();
         const sub = (target as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu;
-        if (sub) openSubmenuPanel(sub, target);
+        if (sub) void openSubmenuPanel(sub, target);
         break;
       }
       case "ArrowLeft": {
@@ -1267,7 +1342,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       case " ": {
         e.preventDefault();
         const sub = (target as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu;
-        if (sub) openSubmenuPanel(sub, target);
+        if (sub) void openSubmenuPanel(sub, target);
         else target.click();
         break;
       }
@@ -1302,7 +1377,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
           e.preventDefault();
           const sub = (itemWithShortcut as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu;
           if (sub) {
-            openSubmenuPanel(sub, itemWithShortcut);
+            void openSubmenuPanel(sub, itemWithShortcut);
             requestAnimationFrame(() => {
               const last = openSubmenus[openSubmenus.length - 1];
               if (last) {

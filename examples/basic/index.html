@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="../../src/style.css">
   <style>
     body { font-family: system-ui, sans-serif; padding: 2rem; }
-    .controls { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+    .controls { margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
     .controls label { font-weight: 500; }
     .controls select { padding: 0.4rem 0.75rem; font-size: 14px; border-radius: 6px; min-width: 160px; }
     .target { padding: 2rem; background: #f0f0f0; border-radius: 8px; margin-bottom: 1rem; }
@@ -22,6 +22,11 @@
     .cm-radio.custom-radio-checked { color: var(--cm-fg, #1a1a1a); }
     .cm-radio.custom-radio-unchecked { opacity: 0.5; }
     .cm-menu-max-height-demo { --cm-menu-max-height: 200px; }
+    /* Badge style variants (class on menu root) */
+    .cm-badge-pill .cm-item-badge { border-radius: 999px; padding: 0 8px; font-weight: 600; }
+    .cm-badge-minimal .cm-item-badge { background: transparent; border: 1px solid currentColor; opacity: 0.85; }
+    .cm-badge-danger .cm-item-badge { background: #dc2626; color: #fff; border: none; font-weight: 600; }
+    .cm-badge-outline .cm-item-badge { background: transparent; border: 1px solid rgba(0,0,0,0.2); box-shadow: none; }
   </style>
 </head>
 <body>
@@ -45,6 +50,19 @@
     <select id="max-height-select">
       <option value="default">Default</option>
       <option value="200px">200px (scroll)</option>
+    </select>
+    <label for="animation-type" style="margin-left: 1rem;">Animation:</label>
+    <select id="animation-type">
+      <option value="fade" selected>Fade</option>
+      <option value="slide">Slide</option>
+    </select>
+    <label for="badge-style" style="margin-left: 1rem;">Badge style:</label>
+    <select id="badge-style">
+      <option value="default" selected>Default</option>
+      <option value="pill">Pill</option>
+      <option value="minimal">Minimal</option>
+      <option value="danger">Danger</option>
+      <option value="outline">Outline</option>
     </select>
     <span style="margin-left: 1rem;">
       <label for="submenu-arrow">Submenu arrow:</label>
@@ -180,9 +198,9 @@
 
     function getMenuItems() {
       return [
-        { label: "Copy", icon: "📋", shortcut: "Ctrl+C", onClick: () => console.log("Copy") },
-        { label: "Paste", icon: "📄", shortcut: "Ctrl+V", onClick: ({ close }) => { console.log("Paste"); close(); } },
-        { label: "Save", icon: "💾", shortcut: "Ctrl+S", disabled: true, onClick: () => console.log("Save") },
+        { label: "Copy", icon: "📋", shortcut: "Ctrl+C", badge: 3, onClick: () => console.log("Copy") },
+        { label: "Paste", icon: "📄", shortcut: "Ctrl+V", badge: "New", onClick: ({ close }) => { console.log("Paste"); close(); } },
+        { label: "Save", icon: "💾", shortcut: "Ctrl+S", disabled: true, badge: 1, onClick: () => console.log("Save") },
         { type: "separator" },
         { type: "label", label: "View" },
         {
@@ -285,16 +303,18 @@
           },
         },
         { type: "separator" },
-        { label: "Help", variant: "info", onClick: () => console.log("Help") },
+        { label: "Help", variant: "info", badge: { content: "?", className: "badge-help" }, onClick: () => console.log("Help") },
         {
           type: "submenu",
           label: "More",
+          badge: 5,
           children: [
             { label: "Rename", onClick: () => console.log("Rename") },
             { label: "Delete", variant: "danger", onClick: () => console.log("Delete") },
             {
               type: "submenu",
               label: "Nested actions",
+              badge: { content: "2", className: "badge-nested" },
               children: [
                 { label: "Duplicate", onClick: () => console.log("Duplicate") },
                 { label: "Move to…", onClick: () => console.log("Move to") },
@@ -322,8 +342,11 @@
       let theme = STYLES[styleKey];
       const maxHeightKey = document.getElementById("max-height-select").value;
       const maxHeightClass = maxHeightKey === "200px" ? "cm-menu-max-height-demo" : "";
-      if (maxHeightClass) {
-        theme = theme ? { ...theme, class: [theme.class, maxHeightClass].filter(Boolean).join(" ") } : { class: maxHeightClass };
+      const badgeStyleKey = document.getElementById("badge-style").value;
+      const badgeClass = badgeStyleKey === "default" ? "" : "cm-badge-" + badgeStyleKey;
+      const extraClasses = [maxHeightClass, badgeClass].filter(Boolean).join(" ");
+      if (extraClasses) {
+        theme = theme ? { ...theme, class: [theme.class, extraClasses].filter(Boolean).join(" ") } : { class: extraClasses };
       }
       const arrowMode = document.getElementById("submenu-arrow").value;
       let submenuArrow = false;
@@ -332,11 +355,12 @@
         const size = parseInt(document.getElementById("submenu-arrow-size").value, 10) || 14;
         submenuArrow = { icon: CHEVRON_SVG, size, opacity: 0.8 };
       }
+      const animationType = document.getElementById("animation-type").value;
       return createContextMenu({
         menu: getMenuItems,
         submenuArrow,
         theme: theme ?? undefined,
-        animation: { enter: 120, leave: 80 },
+        animation: { type: animationType, enter: 120, leave: 80 },
         position: { padding: 8, flip: true, shift: true },
       });
     }
@@ -375,6 +399,16 @@
       bindMenu();
     });
     document.getElementById("max-height-select").addEventListener("change", () => {
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+    document.getElementById("animation-type").addEventListener("change", () => {
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+    document.getElementById("badge-style").addEventListener("change", () => {
       menu.destroy();
       menu = createMenu();
       bindMenu();

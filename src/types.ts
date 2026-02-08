@@ -2,6 +2,22 @@
 export type MenuItemVariant = "default" | "danger" | "info" | "success" | "warning" | "muted";
 
 /**
+ * Badge shown to the right of the label/shortcut. Simple (string/number) or fully customizable.
+ * With object: use `content` + `className`, or `render()` for a custom element.
+ */
+export type BadgeConfig =
+  | string
+  | number
+  | {
+      /** Text or number to display. Ignored if `render` is provided. */
+      content?: string | number;
+      /** CSS class(es) on the badge element (in addition to the default .cm-item-badge when not using render). */
+      className?: string;
+      /** Return a custom element for full control. Element is appended as-is; set aria-hidden="true" if decorative. */
+      render?: () => HTMLElement;
+    };
+
+/**
  * Config for the loading spinner. Can be set globally (config.spinner) or per item (loadingIcon, loadingSize, loadingSpeed).
  */
 export interface SpinnerConfig {
@@ -43,6 +59,8 @@ export type MenuItemAction = MenuItemBase & {
   icon?: string | HTMLElement;
   /** Shortcut key for the action. */
   shortcut?: string;
+  /** Optional badge shown to the right of the label/shortcut. String/number or BadgeConfig (content, className, render). */
+  badge?: BadgeConfig;
   /** The function to call when the action is clicked. */
   onClick?: (event: MenuClickEvent) => void;
   /** When false, keep the menu open after click. Default is true (close). */
@@ -53,6 +71,9 @@ export type MenuItemAction = MenuItemBase & {
 
 export type SubmenuPlacement = "right" | "left" | "auto";
 
+/** Submenu children: array, or sync/async function that returns items (resolved when submenu opens). */
+export type SubmenuChildren = MenuItem[] | (() => MenuItem[]) | (() => Promise<MenuItem[]>);
+
 export type MenuItemSubmenu = MenuItemBase & {
   /** The type of the submenu. */
   type: "submenu";
@@ -62,8 +83,10 @@ export type MenuItemSubmenu = MenuItemBase & {
   icon?: string | HTMLElement;
   /** Shortcut key for the submenu. */
   shortcut?: string;
-  /** The children of the submenu. */
-  children: MenuItem[];
+  /** Optional badge shown to the right of the label/shortcut. String/number or BadgeConfig (content, className, render). */
+  badge?: BadgeConfig;
+  /** The children of the submenu. Array or function returning items (or Promise); resolved when submenu opens. */
+  children: SubmenuChildren;
   /** Where to open the submenu relative to the parent. Overrides config.submenuPlacement. */
   submenuPlacement?: SubmenuPlacement;
 };
@@ -157,6 +180,8 @@ export type MenuItemLink = MenuItemBase & {
   icon?: string | HTMLElement;
   /** Shortcut key for the link. */
   shortcut?: string;
+  /** Optional badge shown to the right of the label/shortcut. String/number or BadgeConfig (content, className, render). */
+  badge?: BadgeConfig;
   /** Link target, e.g. "_blank". */
   target?: string;
   /** Link rel, e.g. "noopener". */
@@ -203,7 +228,11 @@ export interface ThemeConfig {
   tokens?: Record<string, string>;
 }
 
+export type AnimationType = "fade" | "slide";
+
 export interface AnimationConfig {
+  /** Animation style: "fade" (opacity + scale) or "slide" (opacity + translate). Default "fade". */
+  type?: AnimationType;
   /** The duration of the enter animation. */
   enter?: number | { duration: number; easing: string };
   /** The duration of the leave animation. */
@@ -221,6 +250,10 @@ export interface PositionConfig {
   flip?: boolean;
   /** Whether to shift the menu to keep it in view. */
   shift?: boolean;
+  /** Base z-index for the root menu. Used with submenuZIndexStep for stacking. */
+  zIndexBase?: number;
+  /** Z-index increment per submenu level so each submenu stacks above the previous. 0 = no increment. */
+  submenuZIndexStep?: number;
 }
 
 /**
@@ -264,6 +297,26 @@ export type ContextMenuBindConfig =
   | HTMLElement
   | { element: HTMLElement; options?: BindOptions };
 
+/** Context passed to onBeforeOpen (and optionally to other open hooks). */
+export interface OpenContext {
+  /** X coordinate where the menu will open. */
+  x: number;
+  /** Y coordinate where the menu will open. */
+  y: number;
+  /** Element that received the context menu event, if any. */
+  target?: Element | null;
+  /** The MouseEvent that triggered the open, when opened via contextmenu or bind. */
+  event?: MouseEvent;
+}
+
+/** Context passed to onClose and onAfterClose when the menu closes. */
+export interface CloseContext {
+  /** The item that was selected (clicked), if any. */
+  selectedItem?: MenuItem;
+  /** Anchor coordinates used for the last open, or null. */
+  anchor: { x: number; y: number } | null;
+}
+
 export interface ContextMenuConfig {
   /** The menu items. */
   menu: MenuItem[] | (() => MenuItem[]);
@@ -285,10 +338,12 @@ export interface ContextMenuConfig {
   portal?: HTMLElement | (() => HTMLElement);
   /** The function to call when the menu is opened. Receives the MouseEvent when opened via contextmenu or bind; undefined when opened programmatically (e.g. open(x, y) or long-press). */
   onOpen?: (event?: MouseEvent) => void;
-  /** The function to call when the menu is closed. */
-  onClose?: () => void;
-  /** Called before the menu opens. Return false (or a Promise resolving to false) to cancel. */
-  onBeforeOpen?: (event?: MouseEvent) => boolean | void | Promise<boolean | void>;
+  /** The function to call when the menu is closed. Receives close context (selectedItem, anchor). */
+  onClose?: (context?: CloseContext) => void;
+  /** Called before the menu opens. Return false (or a Promise resolving to false) to cancel. Receives event and open context. */
+  onBeforeOpen?: (event?: MouseEvent, context?: OpenContext) => boolean | void | Promise<boolean | void>;
+  /** Called after the menu is fully closed (after leave animation). Receives close context. */
+  onAfterClose?: (context?: CloseContext) => void;
   /** Called before the menu closes. Return false (or a Promise resolving to false) to cancel. */
   onBeforeClose?: () => boolean | void | Promise<boolean | void>;
   /** Called when the user hovers or focuses an interactive item. */

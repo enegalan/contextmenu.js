@@ -24,6 +24,7 @@ export const CLASS_CHECKED = "cm-checked";
 export const CLASS_CHECK = "cm-check";
 export const CLASS_CHECK_CUSTOM = "cm-check--custom";
 export const CLASS_SHORTCUT = "cm-shortcut";
+export const CLASS_ITEM_BADGE = "cm-item-badge";
 export const CLASS_ITEM_RADIO = "cm-item-radio";
 export const CLASS_RADIO = "cm-radio";
 export const CLASS_RADIO_CUSTOM = "cm-radio--custom";
@@ -38,6 +39,7 @@ export const CLASS_ITEM_VARIANT_WARNING = "cm-item--warning";
 export const CLASS_ITEM_VARIANT_MUTED = "cm-item--muted";
 
 export const THEME_CLASS_DATA_ATTR = "data-cm-theme-class";
+export const ANIMATION_TYPE_DATA_ATTR = "data-cm-animation";
 
 export const CSS_VAR_PREFIX = "--cm-";
 export const CSS_VAR_ENTER_DURATION = "--cm-enter-duration";
