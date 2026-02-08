@@ -77,11 +77,28 @@ function isMacLikePlatform(): boolean {
   return platform === "macOS" || platform === "iOS";
 }
 
+const MAC_MODIFIER_SYMBOLS: Record<string, string> = {
+  cmd: "⌘",
+  ctrl: "⌃",
+  alt: "⌥",
+  shift: "⇧",
+};
+
 function formatShortcutForDisplay(shortcut: string): string {
   if (!shortcut || typeof shortcut !== "string") return shortcut;
+  const parts = shortcut.split("+").map((p) => p.trim());
+  if (parts.length === 0) return shortcut;
+  const keyPart = parts[parts.length - 1] ?? "";
+  const modParts = parts.slice(0, -1).map((p) => p.toLowerCase());
   const useCmd = isMacLikePlatform();
-  if (useCmd) return shortcut.replace(/\bCtrl\b/gi, "Cmd");
-  return shortcut.replace(/\bCmd\b/gi, "Ctrl");
+  const keyDisplay = keyPart.length === 1 ? keyPart.toUpperCase() : keyPart;
+  if (useCmd) {
+    const symbols = modParts.map((m) => (m === "ctrl" ? MAC_MODIFIER_SYMBOLS.cmd : MAC_MODIFIER_SYMBOLS[m as keyof typeof MAC_MODIFIER_SYMBOLS] ?? m));
+    return symbols.join("") + keyDisplay;
+  }
+  if (modParts.length === 0) return keyDisplay;
+  const winMods = modParts.map((m) => (m === "cmd" ? "Ctrl" : m.charAt(0).toUpperCase() + m.slice(1)));
+  return winMods.join("+") + "+" + keyDisplay;
 }
 
 function normalizeItem(raw: MenuItem): MenuItem {
