@@ -67,6 +67,23 @@ function getPortal(portal: ContextMenuConfig["portal"]): HTMLElement {
   return typeof portal === "function" ? portal() : portal;
 }
 
+function isMacLikePlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const p = navigator.platform ?? "";
+  if (/Mac|iPhone|iPod|iPad/i.test(p)) return true;
+  const ua = navigator.userAgent ?? "";
+  if (/Mac|iPhone|iPod|iPad/i.test(ua)) return true;
+  const platform = (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform;
+  return platform === "macOS" || platform === "iOS";
+}
+
+function formatShortcutForDisplay(shortcut: string): string {
+  if (!shortcut || typeof shortcut !== "string") return shortcut;
+  const useCmd = isMacLikePlatform();
+  if (useCmd) return shortcut.replace(/\bCtrl\b/gi, "Cmd");
+  return shortcut.replace(/\bCmd\b/gi, "Ctrl");
+}
+
 function normalizeItem(raw: MenuItem): MenuItem {
   const item = { ...raw } as MenuItem;
   if ("visible" in item && item.visible === undefined) (item as MenuItemAction).visible = true;
@@ -299,7 +316,7 @@ function createItemNode(
         const sc = document.createElement("span");
         sc.setAttribute("aria-hidden", "true");
         sc.className = CLASS_SHORTCUT;
-        sc.textContent = chk.shortcut;
+        sc.textContent = formatShortcutForDisplay(chk.shortcut);
         el.appendChild(sc);
       }
     }
@@ -392,7 +409,7 @@ function createItemNode(
         const sc = document.createElement("span");
         sc.setAttribute("aria-hidden", "true");
         sc.className = CLASS_SHORTCUT;
-        sc.textContent = radioItem.shortcut;
+        sc.textContent = formatShortcutForDisplay(radioItem.shortcut);
         el.appendChild(sc);
       }
     }
@@ -468,7 +485,7 @@ function createItemNode(
       const sc = document.createElement("span");
       sc.setAttribute("aria-hidden", "true");
       sc.className = CLASS_SHORTCUT;
-      sc.textContent = sub.shortcut;
+      sc.textContent = formatShortcutForDisplay(sub.shortcut);
       el.appendChild(sc);
     }
     if (arrowConfig) appendSubmenuArrow(el, arrowConfig);
@@ -522,7 +539,7 @@ function createItemNode(
       const sc = document.createElement("span");
       sc.setAttribute("aria-hidden", "true");
       sc.className = CLASS_SHORTCUT;
-      sc.textContent = linkItem.shortcut;
+      sc.textContent = formatShortcutForDisplay(linkItem.shortcut);
       el.appendChild(sc);
     }
     (el as unknown as { _cmItem?: MenuItem })._cmItem = linkItem;
@@ -589,7 +606,7 @@ function createItemNode(
       const sc = document.createElement("span");
       sc.setAttribute("aria-hidden", "true");
       sc.className = CLASS_SHORTCUT;
-      sc.textContent = action.shortcut;
+      sc.textContent = formatShortcutForDisplay(action.shortcut);
       el.appendChild(sc);
     }
   }
@@ -719,7 +736,12 @@ function shortcutMatchesEvent(shortcut: string, e: KeyboardEvent): boolean {
   const hasAlt = mods.includes("alt");
   const hasShift = mods.includes("shift");
   if (hasCtrl || hasCmd) {
-    if (!(e.ctrlKey || e.metaKey)) return false;
+    const useCmd = isMacLikePlatform();
+    if (useCmd) {
+      if (!e.metaKey || e.ctrlKey) return false;
+    } else {
+      if (!e.ctrlKey || e.metaKey) return false;
+    }
   } else if (e.ctrlKey || e.metaKey) return false;
   if (hasAlt) {
     if (!e.altKey) return false;
