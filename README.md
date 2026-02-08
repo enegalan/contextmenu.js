@@ -12,7 +12,7 @@ npm install contextmenu.js
 
 ```js
 import { createContextMenu } from "contextmenu.js";
-import "contextmenu.js/src/style.css";
+import "contextmenu.js/dist/style.css";
 
 const menu = createContextMenu({
   menu: [
@@ -219,7 +219,7 @@ Each icon is wrapped in a span with class `.cm-shortcut-icon` so you can size or
 Load the default CSS and override with variables:
 
 ```css
-@import "contextmenu.js/src/style.css";
+@import "contextmenu.js/dist/style.css";
 
 .cm-menu {
   --cm-bg: #1e1e1e;
@@ -263,11 +263,11 @@ Only one context menu is open at a time. When a new menu is opened (from any ins
 
 Build output is minified. Approximate sizes:
 
-| Asset | Minified
-|-------|----------|
-| `dist/index.js` (ESM) | ~27 KB
-| `dist/index.cjs` (CJS) | ~28 KB
-| `src/style.css` | ~10 KB
+| Asset | Size |
+|-------|------|
+| `dist/index.js` (ESM) | ~27 KB |
+| `dist/index.cjs` (CJS) | ~28 KB |
+| `dist/style.css` | ~8 KB (minified) |
 
 ---
 
@@ -278,7 +278,7 @@ npm install
 npm run build
 ```
 
-Output: `dist/index.js` (ESM), `dist/index.cjs` (CJS), `dist/index.d.ts`. Styles: `src/style.css` (no build).
+Output: `dist/index.js` (ESM), `dist/index.cjs` (CJS), `dist/index.d.ts`, `dist/style.css` (minified).
 
 **Dev + example:**
 
