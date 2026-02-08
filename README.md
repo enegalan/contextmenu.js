@@ -56,6 +56,7 @@ Returns an instance with:
 ### Config
 
 - **`menu`** – Array of `MenuItem` (see below).
+- **`submenuArrow?`** – `boolean | SubmenuArrowConfig` – When `true`, parent items with a submenu show the default CSS arrow. When an object, customize it: **`icon?`** – SVG string or `HTMLElement` (omit for default triangle); **`size?`** – `number` (px) or CSS length (e.g. `"0.5rem"`); **`className?`** – extra class on the arrow wrapper; **`opacity?`** – 0–1. Omit or `false` to hide.
 - **`theme?`** – `{ class?: string; tokens?: Record<string, string> }` – Extra class on the root and CSS variable overrides (e.g. `tokens: { "bg": "#111" }` sets `--cm-bg`).
 - **`animation?`** – `{ enter?: number | { duration, easing }; leave?: number | { duration, easing }; disabled?: boolean }` – Durations in ms; `disabled: true` turns off animations.
 - **`position?`** – `{ offset?: { x, y }; padding?: number; flip?: boolean; shift?: boolean }` – Offset from anchor; viewport padding; flip/shift to keep menu in view.
@@ -101,7 +102,7 @@ createContextMenu({
 });
 ```
 
-Variables: `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-font-size`, `--cm-border`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-disabled-opacity`, `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-z-index`.
+Variables: `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-font-size`, `--cm-border`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-disabled-opacity`, `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-z-index`. For default submenu arrow: `--cm-submenu-arrow-size` (e.g. `5px`).
 
 ## Accessibility
 

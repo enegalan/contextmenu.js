@@ -118,6 +118,39 @@
   font-size: var(--cm-shortcut-font-size);
 }
 
+.cm-submenu-arrow {
+  --cm-submenu-arrow-size: 5px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  width: 0;
+  height: 0;
+  border-top: calc(var(--cm-submenu-arrow-size) * 0.8) solid transparent;
+  border-bottom: calc(var(--cm-submenu-arrow-size) * 0.8) solid transparent;
+  border-left: var(--cm-submenu-arrow-size) solid currentColor;
+  opacity: 0.7;
+}
+
+.cm-submenu-arrow.cm-submenu-arrow--icon {
+  width: 1em;
+  height: 1em;
+  min-width: 1em;
+  min-height: 1em;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.cm-submenu-arrow.cm-submenu-arrow--icon svg {
+  width: 100%;
+  height: 100%;
+  flex-shrink: 0;
+  display: block;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
 .cm-separator {
   height: var(--cm-separator-height);
   margin: var(--cm-separator-margin);

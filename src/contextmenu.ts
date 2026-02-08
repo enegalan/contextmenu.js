@@ -5,6 +5,7 @@ import type {
   MenuItemAction,
   MenuItemSubmenu,
   MenuClickEvent,
+  SubmenuArrowConfig,
 } from "./types.js";
 
 const ROOT_CLASS = "cm-menu";
@@ -98,6 +99,50 @@ function appendIcon(el: HTMLElement, icon: string | HTMLElement): void {
   el.appendChild(wrap);
 }
 
+function sizeToCss(size: number | string): string {
+  return typeof size === "number" ? `${size}px` : size;
+}
+
+function normalizeSubmenuArrow(
+  value: ContextMenuConfig["submenuArrow"]
+): SubmenuArrowConfig | null {
+  if (value === false || value === undefined) return null;
+  if (value === true) return {};
+  return value;
+}
+
+function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): void {
+  const wrap = document.createElement("span");
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.className = "cm-submenu-arrow";
+  if (config.className) wrap.classList.add(config.className);
+  if (config.opacity !== undefined) wrap.style.opacity = String(config.opacity);
+  const icon = config.icon;
+  const hasIcon = icon !== undefined && icon !== null;
+  if (hasIcon) {
+    wrap.classList.add("cm-submenu-arrow--icon");
+    if (config.size !== undefined) {
+      const size = sizeToCss(config.size);
+      wrap.style.width = size;
+      wrap.style.height = size;
+      wrap.style.minWidth = size;
+      wrap.style.minHeight = size;
+    }
+    if (typeof icon === "string") {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = icon;
+      while (tmp.firstChild) wrap.appendChild(tmp.firstChild);
+    } else {
+      wrap.appendChild(icon.cloneNode(true));
+    }
+  } else {
+    if (config.size !== undefined) {
+      wrap.style.setProperty("--cm-submenu-arrow-size", sizeToCss(config.size));
+    }
+  }
+  parent.appendChild(wrap);
+}
+
 const SUBMENU_CLOSE_DELAY_MS = 150;
 
 function createItemNode(
@@ -106,8 +151,10 @@ function createItemNode(
   triggerSubmenu: (item: MenuItemSubmenu, el: HTMLElement) => void,
   scheduleSubmenuOpen?: (sub: MenuItemSubmenu, el: HTMLElement) => void,
   scheduleSubmenuClose?: (triggerEl: HTMLElement) => void,
-  onHoverFocus?: (el: HTMLElement) => void
+  onHoverFocus?: (el: HTMLElement) => void,
+  submenuArrowConfig?: SubmenuArrowConfig | null
 ): HTMLElement | null {
+  const arrowConfig = submenuArrowConfig ?? null;
   if ("visible" in item && item.visible === false) return null;
 
   if (item.type === "separator") {
@@ -143,6 +190,7 @@ function createItemNode(
       sc.textContent = sub.shortcut;
       el.appendChild(sc);
     }
+    if (arrowConfig) appendSubmenuArrow(el, arrowConfig);
 
     el.addEventListener("mouseenter", () => {
       onHoverFocus?.(el);
@@ -245,6 +293,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
   applyAnimationConfig(root, config);
   wrapper.appendChild(root);
+
+  const submenuArrowConfig = normalizeSubmenuArrow(config.submenuArrow);
 
   let isOpen = false;
   let lastFocusTarget: HTMLElement | null = null;
@@ -377,7 +427,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     applyAnimationConfig(panel, config);
 
     sub.children.forEach((child) => {
-      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel));
+      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), submenuArrowConfig);
       if (node) panel.appendChild(node);
     });
 
@@ -443,7 +493,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   function buildRootContent(): void {
     root.innerHTML = "";
     menu.forEach((item) => {
-      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root));
+      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), submenuArrowConfig);
       if (node) root.appendChild(node);
     });
   }

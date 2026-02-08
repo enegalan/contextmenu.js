@@ -54,8 +54,25 @@ export interface PositionConfig {
   shift?: boolean;
 }
 
+/**
+ * Config for the arrow shown on parent items that have a submenu.
+ * Set to `true` to use the default arrow with no options.
+ */
+export interface SubmenuArrowConfig {
+  /** Custom icon: SVG string (e.g. inline SVG) or HTMLElement. Omit to use the default CSS arrow. */
+  icon?: string | HTMLElement;
+  /** Size in px (number) or CSS length (e.g. "0.5rem"). For default arrow, scales the triangle; for custom icon, sets width and height. */
+  size?: number | string;
+  /** Extra class name(s) on the arrow wrapper. */
+  className?: string;
+  /** Opacity 0–1. Default arrow uses 0.7 when not set. */
+  opacity?: number;
+}
+
 export interface ContextMenuConfig {
   menu: MenuItem[];
+  /** When true, use default submenu arrow. When object, configure icon, size, className, opacity. Omit or false to hide. */
+  submenuArrow?: boolean | SubmenuArrowConfig;
   theme?: ThemeConfig;
   animation?: AnimationConfig;
   position?: PositionConfig;

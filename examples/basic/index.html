@@ -34,13 +34,23 @@
       <option value="sharp">Sharp</option>
       <option value="spacious">Spacious</option>
     </select>
+    <span style="margin-left: 1rem;">
+      <label for="submenu-arrow">Submenu arrow:</label>
+      <select id="submenu-arrow">
+        <option value="off">Off</option>
+        <option value="default" selected>Default</option>
+        <option value="custom">Custom SVG</option>
+      </select>
+      <label for="submenu-arrow-size" id="submenu-arrow-size-label" style="display: none; margin-left: 0.5rem;">Size:</label>
+      <input type="number" id="submenu-arrow-size" value="14" min="8" max="24" style="display: none; width: 3rem; padding: 0.25rem; margin-left: 0.25rem;">
+    </span>
   </div>
   <div class="target" id="target">
     <p>Right-click here to open the context menu.</p>
   </div>
   <button type="button" id="btn">Open menu at button</button>
   <script type="module">
-    import { createContextMenu } from "../../dist/index.js";
+    import { createContextMenu } from "../../src/index.ts";
 
     const STYLES = {
       default: undefined,
@@ -156,6 +166,14 @@
         children: [
           { label: "Rename", onClick: () => console.log("Rename") },
           { label: "Delete", onClick: () => console.log("Delete") },
+          {
+            type: "submenu",
+            label: "Nested actions",
+            children: [
+              { label: "Duplicate", onClick: () => console.log("Duplicate") },
+              { label: "Move to…", onClick: () => console.log("Move to") },
+            ],
+          },
         ],
       },
       {
@@ -170,11 +188,21 @@
 
     let menu = createMenu();
 
+    const CHEVRON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z"/></svg>';
+
     function createMenu() {
       const styleKey = document.getElementById("style-select").value;
       const theme = STYLES[styleKey];
+      const arrowMode = document.getElementById("submenu-arrow").value;
+      let submenuArrow = false;
+      if (arrowMode === "default") submenuArrow = true;
+      else if (arrowMode === "custom") {
+        const size = parseInt(document.getElementById("submenu-arrow-size").value, 10) || 14;
+        submenuArrow = { icon: CHEVRON_SVG, size, opacity: 0.8 };
+      }
       return createContextMenu({
         menu: menuItems,
+        submenuArrow,
         theme: theme ?? undefined,
         animation: { enter: 120, leave: 80 },
         position: { padding: 8, flip: true, shift: true },
@@ -199,6 +227,26 @@
       menu = createMenu();
       bindMenu();
     });
+    function toggleArrowSizeVisibility() {
+      const mode = document.getElementById("submenu-arrow").value;
+      const label = document.getElementById("submenu-arrow-size-label");
+      const input = document.getElementById("submenu-arrow-size");
+      const show = mode === "custom";
+      label.style.display = show ? "inline" : "none";
+      input.style.display = show ? "inline" : "none";
+    }
+    document.getElementById("submenu-arrow").addEventListener("change", () => {
+      toggleArrowSizeVisibility();
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+    document.getElementById("submenu-arrow-size").addEventListener("change", () => {
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+    toggleArrowSizeVisibility();
 
     bindMenu();
   </script>
