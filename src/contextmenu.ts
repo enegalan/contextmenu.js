@@ -464,7 +464,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     applyAnimationConfig(panel, config);
 
     sub.children.forEach((child) => {
-      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), undefined, submenuArrowConfig);
+      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig);
       if (node) panel.appendChild(node);
     });
 
@@ -536,9 +536,23 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     }
   }
 
-  function onEnterRootItem(el: HTMLElement): void {
-    if (openSubmenus.length > 0 && openSubmenus[0].trigger !== el) {
-      closeAllSubmenus();
+  function onEnterMenuItem(el: HTMLElement): void {
+    if (openSubmenus.length === 0) return;
+    cancelSubmenuClose();
+    const menuEl = el.closest("[role='menu']") as HTMLElement | null;
+    if (!menuEl) return;
+    let levelIndex = -1;
+    if (menuEl !== root) {
+      for (let i = 0; i < openSubmenus.length; i++) {
+        if (openSubmenus[i].panel === menuEl) {
+          levelIndex = i;
+          break;
+        }
+      }
+    }
+    for (let j = openSubmenus.length - 1; j > levelIndex; j--) {
+      const { panel, trigger } = openSubmenus[j];
+      closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true });
     }
   }
 
@@ -549,7 +563,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   function buildRootContent(): void {
     root.innerHTML = "";
     menu.forEach((item) => {
-      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterRootItem, submenuArrowConfig);
+      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterMenuItem, submenuArrowConfig);
       if (node) root.appendChild(node);
     });
   }
