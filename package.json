@@ -16,8 +16,7 @@
   "sideEffects": false,
   "files": [
     "dist",
-    "src/default-styles.css",
-    "src/dark-mode-styles.css"
+    "src/style.css"
   ],
   "scripts": {
     "build": "tsup",
