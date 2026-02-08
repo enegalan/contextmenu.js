@@ -9,9 +9,12 @@
   --cm-border: 1px solid rgba(0, 0, 0, 0.08);
   --cm-separator-bg: rgba(0, 0, 0, 0.08);
   --cm-separator-margin: 4px 8px;
+  --cm-separator-height: 1px;
   --cm-item-hover-bg: rgba(0, 0, 0, 0.06);
   --cm-item-active-bg: rgba(0, 0, 0, 0.1);
   --cm-disabled-opacity: 0.5;
+  --cm-shortcut-font-size: 0.9em;
+  --cm-shortcut-opacity: 0.7;
   --cm-z-index: 9999;
   --cm-menu-padding: 4px 0;
 }
@@ -100,12 +103,12 @@
 .cm-shortcut {
   flex-shrink: 0;
   margin-left: auto;
-  opacity: 0.7;
-  font-size: 0.9em;
+  opacity: var(--cm-shortcut-opacity);
+  font-size: var(--cm-shortcut-font-size);
 }
 
 .cm-separator {
-  height: 1px;
+  height: var(--cm-separator-height);
   margin: var(--cm-separator-margin);
   padding: 0;
   background: var(--cm-separator-bg);
