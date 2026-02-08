@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>contextmenu.js – style switch example</title>
+  <link rel="stylesheet" href="../../src/style.css">
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; }
+    .controls { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+    .controls label { font-weight: 500; }
+    .controls select { padding: 0.4rem 0.75rem; font-size: 14px; border-radius: 6px; min-width: 160px; }
+    .target { padding: 2rem; background: #f0f0f0; border-radius: 8px; margin-bottom: 1rem; }
+    .target p { margin: 0 0 0.5rem 0; color: #666; }
+    button { padding: 0.5rem 1rem; cursor: pointer; }
+    .cm-theme-high-contrast .cm-item:hover:not([aria-disabled="true"]),
+    .cm-theme-high-contrast .cm-item:focus-visible { color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>contextmenu.js – style switch</h1>
+  <div class="controls">
+    <label for="style-select">Menu style:</label>
+    <select id="style-select">
+      <option value="default">Default (light)</option>
+      <option value="dark">Dark</option>
+      <option value="compact">Compact</option>
+      <option value="rounded">Rounded</option>
+      <option value="minimal">Minimal</option>
+      <option value="flat">Flat</option>
+      <option value="high-contrast">High contrast</option>
+      <option value="blue">Blue accent</option>
+      <option value="warm">Warm</option>
+      <option value="sharp">Sharp</option>
+      <option value="spacious">Spacious</option>
+    </select>
+  </div>
+  <div class="target" id="target">
+    <p>Right-click here to open the context menu.</p>
+  </div>
+  <button type="button" id="btn">Open menu at button</button>
+  <script type="module">
+    import { createContextMenu } from "../../dist/index.js";
+
+    const STYLES = {
+      default: undefined,
+      dark: {
+        class: "cm-theme-dark",
+        tokens: {
+          bg: "#1a1a1a",
+          fg: "#e5e5e5",
+          "item-hover-bg": "rgba(255, 255, 255, 0.08)",
+          "item-active-bg": "rgba(255, 255, 255, 0.12)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          "separator-bg": "rgba(255, 255, 255, 0.12)",
+          shadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
+        },
+      },
+      compact: {
+        tokens: {
+          "item-padding-x": "10px",
+          "item-padding-y": "5px",
+          "font-size": "13px",
+          radius: "4px",
+        },
+      },
+      rounded: {
+        tokens: {
+          radius: "12px",
+          shadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+          "item-padding-x": "14px",
+          "item-padding-y": "10px",
+        },
+      },
+      minimal: {
+        tokens: {
+          border: "none",
+          shadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+          "item-hover-bg": "rgba(0, 0, 0, 0.04)",
+          "separator-bg": "rgba(0, 0, 0, 0.06)",
+        },
+      },
+      flat: {
+        tokens: {
+          shadow: "none",
+          border: "1px solid rgba(0, 0, 0, 0.1)",
+          radius: "4px",
+        },
+      },
+      "high-contrast": {
+        class: "cm-theme-high-contrast",
+        tokens: {
+          bg: "#fff",
+          fg: "#111",
+          border: "2px solid #111",
+          "item-hover-bg": "#111",
+          "item-active-bg": "#333",
+          "separator-bg": "#111",
+          shadow: "none",
+        },
+      },
+      blue: {
+        tokens: {
+          bg: "#f0f6ff",
+          fg: "#0f172a",
+          "item-hover-bg": "rgba(59, 130, 246, 0.15)",
+          "item-active-bg": "rgba(59, 130, 246, 0.25)",
+          border: "1px solid rgba(59, 130, 246, 0.2)",
+          "separator-bg": "rgba(59, 130, 246, 0.2)",
+          shadow: "0 4px 14px rgba(59, 130, 246, 0.12)",
+        },
+      },
+      warm: {
+        tokens: {
+          bg: "#fffbf5",
+          fg: "#292524",
+          "item-hover-bg": "rgba(217, 119, 6, 0.08)",
+          "item-active-bg": "rgba(217, 119, 6, 0.14)",
+          border: "1px solid rgba(217, 119, 6, 0.15)",
+          "separator-bg": "rgba(217, 119, 6, 0.2)",
+          shadow: "0 4px 12px rgba(180, 83, 9, 0.1)",
+        },
+      },
+      sharp: {
+        tokens: {
+          radius: "0",
+          shadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+          "item-padding-x": "12px",
+        },
+      },
+      spacious: {
+        tokens: {
+          "item-padding-x": "18px",
+          "item-padding-y": "12px",
+          "font-size": "15px",
+          radius: "8px",
+          shadow: "0 6px 20px rgba(0, 0, 0, 0.12)",
+        },
+      },
+    };
+
+    const menuItems = [
+      { label: "Copy", shortcut: "Ctrl+C", onSelect: () => console.log("Copy") },
+      { label: "Paste", shortcut: "Ctrl+V", onSelect: ({ close }) => { console.log("Paste"); close(); } },
+      { type: "separator" },
+      {
+        type: "submenu",
+        label: "More",
+        children: [
+          { label: "Rename", onSelect: () => console.log("Rename") },
+          { label: "Delete", onSelect: () => console.log("Delete") },
+        ],
+      },
+    ];
+
+    let menu = createMenu();
+
+    function createMenu() {
+      const styleKey = document.getElementById("style-select").value;
+      const theme = STYLES[styleKey];
+      return createContextMenu({
+        menu: menuItems,
+        theme: theme ?? undefined,
+        animation: { enter: 120, leave: 80 },
+        position: { padding: 8, flip: true, shift: true },
+      });
+    }
+
+    function bindMenu() {
+      const target = document.getElementById("target");
+      const btn = document.getElementById("btn");
+      target.oncontextmenu = (e) => {
+        e.preventDefault();
+        menu.open(e);
+      };
+      btn.onclick = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        menu.open(rect.right, rect.bottom);
+      };
+    }
+
+    document.getElementById("style-select").addEventListener("change", () => {
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+
+    bindMenu();
+  </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+:root {
+  --cm-bg: #fff;
+  --cm-fg: #1a1a1a;
+  --cm-radius: 6px;
+  --cm-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --cm-item-padding-x: 12px;
+  --cm-item-padding-y: 8px;
+  --cm-font-size: 14px;
+  --cm-border: 1px solid rgba(0, 0, 0, 0.08);
+  --cm-separator-bg: rgba(0, 0, 0, 0.08);
+  --cm-item-hover-bg: rgba(0, 0, 0, 0.06);
+  --cm-item-active-bg: rgba(0, 0, 0, 0.1);
+  --cm-disabled-opacity: 0.5;
+  --cm-z-index: 9999;
+}
+
+.cm-menu,
+.cm-submenu {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 8rem;
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+  font-size: var(--cm-font-size);
+  border-radius: var(--cm-radius);
+  box-shadow: var(--cm-shadow);
+  border: var(--cm-border);
+  z-index: var(--cm-z-index);
+  transition:
+    opacity var(--cm-enter-duration, 120ms) var(--cm-enter-easing, ease-out),
+    transform var(--cm-enter-duration, 120ms) var(--cm-enter-easing, ease-out);
+}
+
+.cm-menu.cm-open,
+.cm-submenu.cm-open {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cm-menu:not(.cm-open):not(.cm-leave),
+.cm-submenu:not(.cm-open):not(.cm-leave) {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.cm-menu.cm-leave,
+.cm-submenu.cm-leave {
+  transition:
+    opacity var(--cm-leave-duration, 80ms) var(--cm-leave-easing, ease-in),
+    transform var(--cm-leave-duration, 80ms) var(--cm-leave-easing, ease-in);
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.cm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--cm-item-padding-y) var(--cm-item-padding-x);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.cm-item:hover:not([aria-disabled="true"]) {
+  background: var(--cm-item-hover-bg);
+}
+
+.cm-item:focus {
+  outline: none;
+}
+
+.cm-item:focus-visible {
+  background: var(--cm-item-hover-bg);
+}
+
+.cm-item[aria-disabled="true"] {
+  opacity: var(--cm-disabled-opacity);
+  cursor: default;
+}
+
+.cm-label {
+  flex: 1;
+}
+
+.cm-icon {
+  flex-shrink: 0;
+}
+
+.cm-shortcut {
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
+.cm-separator {
+  height: 1px;
+  margin: 4px 8px;
+  padding: 0;
+  background: var(--cm-separator-bg);
+}
