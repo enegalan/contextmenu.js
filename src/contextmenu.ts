@@ -14,6 +14,7 @@ import type {
   OpenAtElementOptions,
   SubmenuArrowConfig,
 } from "./types.js";
+import type { MenuItemVariant } from "./types.js";
 import {
   ROOT_CLASS,
   ROOT_OPEN_CLASS,
@@ -40,12 +41,18 @@ import {
   CLASS_SUBMENU_TRIGGER,
   CLASS_WRAPPER,
   CLASS_SUBMENU,
+  CLASS_ITEM_VARIANT_DANGER,
+  CLASS_ITEM_VARIANT_INFO,
+  CLASS_ITEM_VARIANT_SUCCESS,
+  CLASS_ITEM_VARIANT_WARNING,
+  CLASS_ITEM_VARIANT_MUTED,
   CSS_VAR_PREFIX,
   CSS_VAR_ENTER_DURATION,
   CSS_VAR_LEAVE_DURATION,
   CSS_VAR_ENTER_EASING,
   CSS_VAR_LEAVE_EASING,
   CSS_VAR_SUBMENU_ARROW_SIZE,
+  THEME_CLASS_DATA_ATTR,
 } from "./constants.js";
 
 function getPortal(portal: ContextMenuConfig["portal"]): HTMLElement {
@@ -216,6 +223,8 @@ function createItemNode(
       el = document.createElement("div");
       el.className = `${CLASS_ITEM} ${CLASS_ITEM_CHECKBOX}`;
       if (chk.className) el.classList.add(chk.className);
+      const variantClass = getVariantClass(chk.variant);
+      if (variantClass) el.classList.add(variantClass);
       if (chk.checked) el.classList.add(CLASS_CHECKED);
       const checkSpan = document.createElement("span");
       checkSpan.setAttribute("aria-hidden", "true");
@@ -285,6 +294,8 @@ function createItemNode(
       el = document.createElement("div");
       el.className = `${CLASS_ITEM} ${CLASS_ITEM_RADIO}`;
       if (radioItem.className) el.classList.add(radioItem.className);
+      const variantClassRadio = getVariantClass(radioItem.variant);
+      if (variantClassRadio) el.classList.add(variantClassRadio);
       if (radioItem.checked) el.classList.add(CLASS_CHECKED);
       const radioSpan = document.createElement("span");
       radioSpan.setAttribute("aria-hidden", "true");
@@ -355,6 +366,8 @@ function createItemNode(
     el.setAttribute("tabindex", "-1");
     el.className = `${CLASS_ITEM} ${CLASS_SUBMENU_TRIGGER}`;
     if (sub.className) el.classList.add(sub.className);
+    const variantClassSub = getVariantClass(sub.variant);
+    if (variantClassSub) el.classList.add(variantClassSub);
     if (sub.id) el.id = sub.id;
     if (sub.disabled) el.setAttribute("aria-disabled", "true");
 
@@ -401,6 +414,8 @@ function createItemNode(
     el = document.createElement("div");
     el.className = CLASS_ITEM;
     if (action.className) el.classList.add(action.className);
+    const variantClassAction = getVariantClass(action.variant);
+    if (variantClassAction) el.classList.add(variantClassAction);
     const label = document.createElement("span");
     label.className = CLASS_LABEL;
     label.textContent = action.label;
@@ -488,10 +503,47 @@ function getCoordsFromAnchor(anchor: { x: number; y: number } | DOMRect): { x: n
   return anchor as { x: number; y: number };
 }
 
+function getVariantClass(variant: MenuItemVariant | undefined): string | null {
+  if (!variant) return null;
+  switch (variant) {
+    case "danger":
+      return CLASS_ITEM_VARIANT_DANGER;
+    case "info":
+      return CLASS_ITEM_VARIANT_INFO;
+    case "success":
+      return CLASS_ITEM_VARIANT_SUCCESS;
+    case "warning":
+      return CLASS_ITEM_VARIANT_WARNING;
+    case "muted":
+      return CLASS_ITEM_VARIANT_MUTED;
+    default:
+      return null;
+  }
+}
+
+function applyThemeToElement(el: HTMLElement, theme: ContextMenuConfig["theme"]): void {
+  const prevClass = el.getAttribute(THEME_CLASS_DATA_ATTR);
+  if (prevClass) {
+    prevClass.trim().split(/\s+/).forEach((c) => el.classList.remove(c));
+  }
+  el.removeAttribute(THEME_CLASS_DATA_ATTR);
+  if (theme?.class) {
+    const classes = theme.class.trim().split(/\s+/).filter(Boolean);
+    classes.forEach((c) => el.classList.add(c));
+    el.setAttribute(THEME_CLASS_DATA_ATTR, theme.class);
+  }
+  if (theme?.tokens) {
+    for (const [key, value] of Object.entries(theme.tokens)) {
+      el.style.setProperty(key.startsWith("--") ? key : CSS_VAR_PREFIX + key, value);
+    }
+  }
+}
+
 export function createContextMenu(config: ContextMenuConfig): ContextMenuInstance {
-  const rawMenu = typeof config.menu === "function" ? config.menu() : (config.menu ?? []);
+  const currentConfig: ContextMenuConfig = { ...config };
+  const rawMenu = typeof currentConfig.menu === "function" ? currentConfig.menu() : (currentConfig.menu ?? []);
   let menu: MenuItem[] = rawMenu.map(normalizeItem);
-  const portal = getPortal(config.portal);
+  const portal = getPortal(currentConfig.portal);
   const wrapper = document.createElement("div");
   wrapper.className = CLASS_WRAPPER;
   const root = document.createElement("div");
@@ -501,16 +553,11 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   root.className = ROOT_CLASS;
   root.style.cssText = "display:none;";
 
-  if (config.theme?.class) root.classList.add(config.theme.class);
-  if (config.theme?.tokens) {
-    for (const [key, value] of Object.entries(config.theme.tokens)) {
-      root.style.setProperty(key.startsWith("--") ? key : CSS_VAR_PREFIX + key, value);
-    }
-  }
-  applyAnimationConfig(root, config);
+  applyThemeToElement(root, currentConfig.theme);
+  applyAnimationConfig(root, currentConfig);
   wrapper.appendChild(root);
 
-  const submenuArrowConfig = normalizeSubmenuArrow(config.submenuArrow);
+  const submenuArrowConfig = normalizeSubmenuArrow(currentConfig.submenuArrow);
 
   let isOpen = false;
   let lastFocusTarget: HTMLElement | null = null;
@@ -519,6 +566,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   const openSubmenus: Array<{ panel: HTMLElement; trigger: HTMLElement }> = [];
   let submenuHoverTimer: ReturnType<typeof setTimeout> | null = null;
   let outsideClickHandler: ((e: MouseEvent) => void) | null = null;
+  let resizeHandler: (() => void) | null = null;
 
   let boundElement: HTMLElement | null = null;
   let boundContextmenu: ((e: MouseEvent) => void) | null = null;
@@ -547,12 +595,16 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       document.removeEventListener("mousedown", outsideClickHandler, true);
       outsideClickHandler = null;
     }
+    if (resizeHandler) {
+      window.removeEventListener("resize", resizeHandler);
+      resizeHandler = null;
+    }
     cancelLeaveAnimation();
     if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
     submenuHoverTimer = null;
 
     function doRootClose(): void {
-      const anim = config.animation;
+      const anim = currentConfig.animation;
       const rawLeave = anim?.leave ?? 80;
       const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
 
@@ -569,7 +621,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
           root.classList.remove(ROOT_LEAVE_CLASS);
           root.style.display = "none";
           wrapper.remove();
-          config.onClose?.();
+          currentConfig.onClose?.();
           if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
         };
         leaveTransitionHandler = onEnd;
@@ -578,7 +630,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       } else {
         root.style.display = "none";
         wrapper.remove();
-        config.onClose?.();
+        currentConfig.onClose?.();
         if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
       }
     }
@@ -608,7 +660,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     options: { clearOpenSubmenu?: boolean; onDone?: () => void } = {}
   ): void {
     const { clearOpenSubmenu = true, onDone } = options;
-    const anim = config.animation;
+    const anim = currentConfig.animation;
     const rawLeave = anim?.leave ?? 80;
     const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
 
@@ -665,13 +717,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     panel.setAttribute("tabindex", "-1");
     panel.className = `${ROOT_CLASS} ${CLASS_SUBMENU}`;
     panel.addEventListener("mouseenter", cancelSubmenuClose);
-    if (config.theme?.class) panel.classList.add(config.theme.class);
-    if (config.theme?.tokens) {
-      for (const [key, value] of Object.entries(config.theme.tokens)) {
-        panel.style.setProperty(key.startsWith("--") ? key : CSS_VAR_PREFIX + key, value);
-      }
-    }
-    applyAnimationConfig(panel, config);
+    applyThemeToElement(panel, currentConfig.theme);
+    applyAnimationConfig(panel, currentConfig);
 
     sub.children.forEach((child) => {
       const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent);
@@ -680,7 +727,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
     wrapper.appendChild(panel);
     const triggerRect = triggerEl.getBoundingClientRect();
-    const padding = config.position?.padding ?? 8;
+    const padding = currentConfig.position?.padding ?? 8;
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
     const isRtl = getComputedStyle(triggerEl).direction === "rtl";
@@ -778,8 +825,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function refreshContent(): void {
-    if (isOpen && typeof config.menu === "function") {
-      menu = config.menu().map(normalizeItem);
+    if (isOpen && typeof currentConfig.menu === "function") {
+      menu = currentConfig.menu().map(normalizeItem);
       buildRootContent();
     }
   }
@@ -793,8 +840,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function open(xOrEvent?: number | MouseEvent, y?: number): void {
-    if (typeof config.menu === "function") {
-      menu = config.menu().map(normalizeItem);
+    if (typeof currentConfig.menu === "function") {
+      menu = currentConfig.menu().map(normalizeItem);
     }
     const openEvent = typeof xOrEvent === "object" && xOrEvent !== null ? xOrEvent : undefined;
     let x: number;
@@ -804,8 +851,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       yCoord = openEvent.clientY;
     } else {
       const noCoords = xOrEvent === undefined && y === undefined;
-      if (noCoords && config.getAnchor) {
-        const anchor = config.getAnchor();
+      if (noCoords && currentConfig.getAnchor) {
+        const anchor = currentConfig.getAnchor();
         const coords = getCoordsFromAnchor(anchor);
         x = coords.x;
         yCoord = coords.y;
@@ -824,13 +871,17 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       if (!wrapper.contains(e.target as Node)) close();
     };
     document.addEventListener("mousedown", outsideClickHandler, true);
-    positionMenu(root, x, yCoord, config);
+    if (currentConfig.closeOnResize) {
+      resizeHandler = (): void => close();
+      window.addEventListener("resize", resizeHandler);
+    }
+    positionMenu(root, x, yCoord, currentConfig);
     root.style.display = "";
 
-    const anim = config.animation;
+    const anim = currentConfig.animation;
     if (anim?.disabled) {
       root.classList.add(ROOT_OPEN_CLASS);
-      config.onOpen?.(openEvent);
+      currentConfig.onOpen?.(openEvent);
       const items = getFocusableItems(root);
       if (items.length) setRovingTabindex(items, 0);
       return;
@@ -838,7 +889,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     root.getClientRects();
     requestAnimationFrame(() => {
       root.classList.add(ROOT_OPEN_CLASS);
-      config.onOpen?.(openEvent);
+      currentConfig.onOpen?.(openEvent);
       const items = getFocusableItems(root);
       if (items.length) setRovingTabindex(items, 0);
     });
@@ -977,6 +1028,10 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       document.removeEventListener("mousedown", outsideClickHandler, true);
       outsideClickHandler = null;
     }
+    if (resizeHandler) {
+      window.removeEventListener("resize", resizeHandler);
+      resizeHandler = null;
+    }
     if (leaveTimeout) clearTimeout(leaveTimeout);
     if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
     wrapper.remove();
@@ -987,10 +1042,51 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     menu = newMenu.map(normalizeItem);
   }
 
+  function updateMenu(updater: (current: MenuItem[]) => MenuItem[]): void {
+    setMenu(updater(deepCloneMenu(menu)));
+  }
+
+  function setTheme(theme: ContextMenuConfig["theme"]): void {
+    currentConfig.theme = theme;
+    applyThemeToElement(root, theme);
+    for (const { panel } of openSubmenus) {
+      applyThemeToElement(panel, theme);
+    }
+  }
+
+  function setPosition(position: ContextMenuConfig["position"]): void {
+    currentConfig.position = position;
+  }
+
+  function setAnimation(animation: ContextMenuConfig["animation"]): void {
+    currentConfig.animation = animation;
+    applyAnimationConfig(root, currentConfig);
+    for (const { panel } of openSubmenus) {
+      applyAnimationConfig(panel, currentConfig);
+    }
+  }
+
+  type Placement = NonNullable<OpenAtElementOptions["placement"]>;
+
   function openAtElement(element: HTMLElement, options?: OpenAtElementOptions): void {
-    const placement = options?.placement ?? "bottom-start";
     const offset = options?.offset ?? { x: 0, y: 0 };
     const rect = element.getBoundingClientRect();
+    let placement: Placement = options?.placement ?? "bottom-start";
+    if (placement === "auto") {
+      const padding = currentConfig.position?.padding ?? 8;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const spaceTop = rect.top - padding;
+      const spaceBottom = vh - rect.bottom - padding;
+      const spaceLeft = rect.left - padding;
+      const spaceRight = vw - rect.right - padding;
+      const vertical = spaceBottom >= spaceTop ? "bottom" : "top";
+      const isRtl = getComputedStyle(element).direction === "rtl";
+      const spaceStart = isRtl ? spaceRight : spaceLeft;
+      const spaceEnd = isRtl ? spaceLeft : spaceRight;
+      const startOrEnd = spaceEnd >= spaceStart ? (isRtl ? "end" : "start") : isRtl ? "start" : "end";
+      placement = `${vertical}-${startOrEnd}` as Placement;
+    }
     let x: number;
     let y: number;
     switch (placement) {
@@ -1043,12 +1139,17 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     openAtElement,
     isOpen: () => isOpen,
     getMenu: () => deepCloneMenu(menu),
+    getRootElement: () => wrapper,
+    updateMenu,
     bind,
     destroy,
     setMenu,
+    setTheme,
+    setPosition,
+    setAnimation,
   };
 
-  const bindConfig = config.bind;
+  const bindConfig = currentConfig.bind;
   if (bindConfig != null) {
     const el = bindConfig instanceof HTMLElement ? bindConfig : bindConfig.element;
     const options = bindConfig instanceof HTMLElement ? undefined : bindConfig.options;

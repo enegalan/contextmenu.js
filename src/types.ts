@@ -1,3 +1,6 @@
+/** Visual variant for menu items (action, submenu, checkbox, radio). Styled via .cm-item--danger, etc. */
+export type MenuItemVariant = "default" | "danger" | "info" | "success" | "warning" | "muted";
+
 export type MenuItemBase = {
   /** The ID of the item. */
   id?: string;
@@ -5,6 +8,8 @@ export type MenuItemBase = {
   disabled?: boolean;
   /** Whether the item is visible. */
   visible?: boolean;
+  /** Visual variant; adds class cm-item--{variant}. */
+  variant?: MenuItemVariant;
   /** CSS class(es) on the item. */
   className?: string;
 };
@@ -192,9 +197,20 @@ export interface SubmenuArrowConfig {
   opacity?: number;
 }
 
+export type OpenAtElementPlacement =
+  | "bottom-start"
+  | "bottom-end"
+  | "top-start"
+  | "top-end"
+  | "left-start"
+  | "left-end"
+  | "right-start"
+  | "right-end"
+  | "auto";
+
 export type OpenAtElementOptions = {
-  /** The placement of the menu. */
-  placement?: "bottom-start" | "bottom-end" | "top-start" | "top-end" | "left-start" | "left-end" | "right-start" | "right-end";
+  /** The placement of the menu; "auto" picks the best side based on viewport space. */
+  placement?: OpenAtElementPlacement;
   /** The offset from the anchor. */
   offset?: { x: number; y: number };
 };
@@ -228,6 +244,8 @@ export interface ContextMenuConfig {
   onClose?: () => void;
   /** Element to bind so the menu opens on contextmenu and long-press. Same as calling instance.bind(element, options) after creation. */
   bind?: ContextMenuBindConfig;
+  /** When true, close the menu on window resize. */
+  closeOnResize?: boolean;
 }
 
 export interface BindOptions {
@@ -250,10 +268,20 @@ export interface ContextMenuInstance {
   isOpen(): boolean;
   /** The function to get the menu. */
   getMenu(): MenuItem[];
+  /** The wrapper element (contains root menu and submenus). */
+  getRootElement(): HTMLElement;
+  /** Update the menu by applying an updater to the current menu. */
+  updateMenu(updater: (current: MenuItem[]) => MenuItem[]): void;
   /** The function to bind the menu to an element. */
   bind(element: HTMLElement, options?: BindOptions): void;
   /** The function to destroy the menu. */
   destroy(): void;
   /** The function to set the menu. */
   setMenu(menu: MenuItem[]): void;
+  /** Update theme at runtime; applies to root and open submenus if menu is open. */
+  setTheme(theme: ThemeConfig | undefined): void;
+  /** Update position config at runtime (used on next open). */
+  setPosition(position: PositionConfig | undefined): void;
+  /** Update animation config at runtime; applies to root and open submenus if menu is open. */
+  setAnimation(animation: AnimationConfig | undefined): void;
 }

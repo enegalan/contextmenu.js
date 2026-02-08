@@ -22,6 +22,7 @@
   --cm-label-opacity: 0.7;
   --cm-check-size: 14px;
   --cm-radio-size: 14px;
+  --cm-menu-max-height: none;
 }
 
 .cm-wrapper {
@@ -42,6 +43,9 @@
   margin: 0;
   padding: var(--cm-menu-padding);
   min-width: var(--cm-menu-min-width);
+  max-height: var(--cm-menu-max-height);
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--cm-bg);
   color: var(--cm-fg);
   font-size: var(--cm-font-size);
@@ -107,6 +111,51 @@
   cursor: default;
 }
 
+.cm-item--danger {
+  color: #c53030;
+}
+
+.cm-item--danger:hover:not([aria-disabled="true"]),
+.cm-item--danger:focus-visible {
+  background: rgba(197, 48, 48, 0.1);
+}
+
+.cm-item--info {
+  color: #2b6cb0;
+}
+
+.cm-item--info:hover:not([aria-disabled="true"]),
+.cm-item--info:focus-visible {
+  background: rgba(43, 108, 176, 0.1);
+}
+
+.cm-item--success {
+  color: #276749;
+}
+
+.cm-item--success:hover:not([aria-disabled="true"]),
+.cm-item--success:focus-visible {
+  background: rgba(39, 103, 73, 0.1);
+}
+
+.cm-item--warning {
+  color: #c05621;
+}
+
+.cm-item--warning:hover:not([aria-disabled="true"]),
+.cm-item--warning:focus-visible {
+  background: rgba(192, 86, 33, 0.1);
+}
+
+.cm-item--muted {
+  color: #718096;
+}
+
+.cm-item--muted:hover:not([aria-disabled="true"]),
+.cm-item--muted:focus-visible {
+  background: rgba(113, 128, 150, 0.1);
+}
+
 .cm-label {
   flex: 1;
 }
@@ -156,6 +205,7 @@
 }
 
 .cm-separator {
+  flex-shrink: 0;
   height: var(--cm-separator-height);
   margin: var(--cm-separator-margin);
   padding: 0;

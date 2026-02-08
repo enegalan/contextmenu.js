@@ -135,6 +135,7 @@
           },
           {
             label: "Delete",
+            variant: "danger",
             onClick: () => {
               row.remove();
               log(`Deleted: ${name}`);
@@ -175,6 +176,7 @@
         },
         {
           label: "Clear all",
+          variant: "danger",
           disabled: count === 0,
           onClick: () => {
             getRows().forEach((r) => r.remove());

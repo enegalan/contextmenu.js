@@ -14,13 +14,14 @@
     .target p { margin: 0 0 0.5rem 0; color: #666; }
     button { padding: 0.5rem 1rem; cursor: pointer; }
     .cm-theme-high-contrast .cm-item:hover:not([aria-disabled="true"]),
-    .cm-theme-high-contrast .cm-item:focus-visible { color: #fff; }
+    .cm-theme-high-contrast .cm-item:focus-visible { color: #fff; background: var(--cm-item-hover-bg); }
     .custom-render-row { font-style: italic; }
     .custom-render-indicator { margin-right: 8px; font-weight: bold; opacity: 0.9; }
     .custom-checkbox-checked { filter: brightness(0.9); }
     .custom-checkbox-unchecked { opacity: 0.7; }
     .cm-radio.custom-radio-checked { color: var(--cm-fg, #1a1a1a); }
     .cm-radio.custom-radio-unchecked { opacity: 0.5; }
+    .cm-menu-max-height-demo { --cm-menu-max-height: 200px; }
   </style>
 </head>
 <body>
@@ -39,6 +40,11 @@
       <option value="warm">Warm</option>
       <option value="sharp">Sharp</option>
       <option value="spacious">Spacious</option>
+    </select>
+    <label for="max-height-select" style="margin-left: 1rem;">Max height:</label>
+    <select id="max-height-select">
+      <option value="default">Default</option>
+      <option value="200px">200px (scroll)</option>
     </select>
     <span style="margin-left: 1rem;">
       <label for="submenu-arrow">Submenu arrow:</label>
@@ -183,6 +189,7 @@
           type: "checkbox",
           label: "Show grid",
           checked: showGrid,
+          closeOnAction: false,
           onChange: ({ checked }) => {
             showGrid = checked;
             console.log("Show grid:", checked);
@@ -193,6 +200,7 @@
           label: "Compact list",
           checked: compactList,
           leadingIcon: "📋",
+          closeOnAction: false,
           onChange: ({ checked }) => {
             compactList = checked;
             console.log("Compact list:", checked);
@@ -206,6 +214,7 @@
           uncheckedIcon: UNCHECKED_BOX_SVG,
           checkedClassName: "custom-checkbox-checked",
           uncheckedClassName: "custom-checkbox-unchecked",
+          closeOnAction: false,
           onChange: ({ checked }) => {
             darkMode = checked;
             console.log("Dark mode:", checked);
@@ -220,6 +229,7 @@
           label: "Name",
           checked: sortBy === "name",
           leadingIcon: "A",
+          closeOnAction: false,
           onSelect: ({ value }) => {
             sortBy = value;
             console.log("Sort by:", value);
@@ -231,6 +241,7 @@
           value: "date",
           label: "Date",
           checked: sortBy === "date",
+          closeOnAction: false,
           onSelect: ({ value }) => {
             sortBy = value;
             console.log("Sort by:", value);
@@ -246,6 +257,7 @@
           uncheckedIcon: RADIO_EMPTY_SVG,
           checkedClassName: "custom-radio-checked",
           uncheckedClassName: "custom-radio-unchecked",
+          closeOnAction: false,
           onSelect: ({ value }) => {
             sortBy = value;
             console.log("Sort by:", value);
@@ -257,6 +269,7 @@
           type: "checkbox",
           label: "Custom row (render)",
           checked: customCheck,
+          closeOnAction: false,
           onChange: ({ checked }) => {
             customCheck = checked;
             console.log("Custom check:", checked);
@@ -272,12 +285,13 @@
           },
         },
         { type: "separator" },
+        { label: "Help", variant: "info", onClick: () => console.log("Help") },
         {
           type: "submenu",
           label: "More",
           children: [
             { label: "Rename", onClick: () => console.log("Rename") },
-            { label: "Delete", onClick: () => console.log("Delete") },
+            { label: "Delete", variant: "danger", onClick: () => console.log("Delete") },
             {
               type: "submenu",
               label: "Nested actions",
@@ -305,7 +319,12 @@
 
     function createMenu() {
       const styleKey = document.getElementById("style-select").value;
-      const theme = STYLES[styleKey];
+      let theme = STYLES[styleKey];
+      const maxHeightKey = document.getElementById("max-height-select").value;
+      const maxHeightClass = maxHeightKey === "200px" ? "cm-menu-max-height-demo" : "";
+      if (maxHeightClass) {
+        theme = theme ? { ...theme, class: [theme.class, maxHeightClass].filter(Boolean).join(" ") } : { class: maxHeightClass };
+      }
       const arrowMode = document.getElementById("submenu-arrow").value;
       let submenuArrow = false;
       if (arrowMode === "default") submenuArrow = true;
@@ -327,10 +346,7 @@
       const btn = document.getElementById("btn");
       menu.bind(target);
       btn.onclick = () => {
-        menu.openAtElement(btn, { placement: "bottom-start" });
-        // or
-        // const rect = btn.getBoundingClientRect();
-        // menu.open(rect.left, rect.top);
+        menu.openAtElement(btn, { placement: "auto" });
       };
     }
 
@@ -354,6 +370,11 @@
       bindMenu();
     });
     document.getElementById("submenu-arrow-size").addEventListener("change", () => {
+      menu.destroy();
+      menu = createMenu();
+      bindMenu();
+    });
+    document.getElementById("max-height-select").addEventListener("change", () => {
       menu.destroy();
       menu = createMenu();
       bindMenu();
