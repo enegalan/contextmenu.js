@@ -13,6 +13,7 @@
   --cm-item-active-bg: rgba(0, 0, 0, 0.1);
   --cm-disabled-opacity: 0.5;
   --cm-z-index: 9999;
+  --cm-menu-padding: 4px 0;
 }
 
 .cm-menu,
@@ -21,7 +22,7 @@
   flex-direction: column;
   list-style: none;
   margin: 0;
-  padding: 4px 0;
+  padding: var(--cm-menu-padding);
   min-width: 8rem;
   background: var(--cm-bg);
   color: var(--cm-fg);
