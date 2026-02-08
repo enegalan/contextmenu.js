@@ -14,12 +14,39 @@ import type {
   OpenAtElementOptions,
   SubmenuArrowConfig,
 } from "./types.js";
-
-const ROOT_CLASS = "cm-menu";
-const ROOT_OPEN_CLASS = "cm-open";
-const ROOT_LEAVE_CLASS = "cm-leave";
-const SUBMENU_OPEN_CLASS = "cm-submenu-open";
-const SUBMENU_HOVER_DELAY_MS = 200;
+import {
+  ROOT_CLASS,
+  ROOT_OPEN_CLASS,
+  ROOT_LEAVE_CLASS,
+  SUBMENU_OPEN_CLASS,
+  SUBMENU_HOVER_DELAY_MS,
+  SUBMENU_CLOSE_DELAY_MS,
+  DEFAULT_LONG_PRESS_MS,
+  CLASS_ICON,
+  CLASS_SUBMENU_ARROW,
+  CLASS_SUBMENU_ARROW_ICON,
+  CLASS_SEPARATOR,
+  CLASS_ITEM,
+  CLASS_ITEM_LABEL,
+  CLASS_LABEL,
+  CLASS_ITEM_CHECKBOX,
+  CLASS_CHECKED,
+  CLASS_CHECK,
+  CLASS_CHECK_CUSTOM,
+  CLASS_SHORTCUT,
+  CLASS_ITEM_RADIO,
+  CLASS_RADIO,
+  CLASS_RADIO_CUSTOM,
+  CLASS_SUBMENU_TRIGGER,
+  CLASS_WRAPPER,
+  CLASS_SUBMENU,
+  CSS_VAR_PREFIX,
+  CSS_VAR_ENTER_DURATION,
+  CSS_VAR_LEAVE_DURATION,
+  CSS_VAR_ENTER_EASING,
+  CSS_VAR_LEAVE_EASING,
+  CSS_VAR_SUBMENU_ARROW_SIZE,
+} from "./constants.js";
 
 function getPortal(portal: ContextMenuConfig["portal"]): HTMLElement {
   if (portal == null) return document.body;
@@ -89,16 +116,16 @@ function applyAnimationConfig(
   const leaveMs = typeof leave === "number" ? leave : leave.duration;
   const enterEasing = typeof enter === "number" ? "ease-out" : enter.easing;
   const leaveEasing = typeof leave === "number" ? "ease-in" : leave.easing;
-  root.style.setProperty("--cm-enter-duration", `${enterMs}ms`);
-  root.style.setProperty("--cm-leave-duration", `${leaveMs}ms`);
-  root.style.setProperty("--cm-enter-easing", enterEasing);
-  root.style.setProperty("--cm-leave-easing", leaveEasing);
+  root.style.setProperty(CSS_VAR_ENTER_DURATION, `${enterMs}ms`);
+  root.style.setProperty(CSS_VAR_LEAVE_DURATION, `${leaveMs}ms`);
+  root.style.setProperty(CSS_VAR_ENTER_EASING, enterEasing);
+  root.style.setProperty(CSS_VAR_LEAVE_EASING, leaveEasing);
 }
 
 function appendIcon(el: HTMLElement, icon: string | HTMLElement): void {
   const wrap = document.createElement("span");
   wrap.setAttribute("aria-hidden", "true");
-  wrap.className = "cm-icon";
+  wrap.className = CLASS_ICON;
   if (typeof icon === "string") wrap.textContent = icon;
   else wrap.appendChild(icon);
   el.appendChild(wrap);
@@ -119,13 +146,13 @@ function normalizeSubmenuArrow(
 function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): void {
   const wrap = document.createElement("span");
   wrap.setAttribute("aria-hidden", "true");
-  wrap.className = "cm-submenu-arrow";
+  wrap.className = CLASS_SUBMENU_ARROW;
   if (config.className) wrap.classList.add(config.className);
   if (config.opacity !== undefined) wrap.style.opacity = String(config.opacity);
   const icon = config.icon;
   const hasIcon = icon !== undefined && icon !== null;
   if (hasIcon) {
-    wrap.classList.add("cm-submenu-arrow--icon");
+    wrap.classList.add(CLASS_SUBMENU_ARROW_ICON);
     if (config.size !== undefined) {
       const size = sizeToCss(config.size);
       wrap.style.width = size;
@@ -139,13 +166,10 @@ function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): vo
       while (tmp.firstChild) wrap.appendChild(tmp.firstChild);
     } else wrap.appendChild(icon.cloneNode(true));
   } else if (config.size !== undefined) {
-    wrap.style.setProperty("--cm-submenu-arrow-size", sizeToCss(config.size));
+    wrap.style.setProperty(CSS_VAR_SUBMENU_ARROW_SIZE, sizeToCss(config.size));
   }
   parent.appendChild(wrap);
 }
-
-const SUBMENU_CLOSE_DELAY_MS = 150;
-const DEFAULT_LONG_PRESS_MS = 500;
 
 function createItemNode(
   item: MenuItem,
@@ -164,7 +188,7 @@ function createItemNode(
   if (item.type === "separator") {
     const el = document.createElement("div");
     el.setAttribute("role", "separator");
-    el.className = "cm-separator";
+    el.className = CLASS_SEPARATOR;
     if (item.className) el.classList.add(item.className);
     return el;
   }
@@ -173,11 +197,11 @@ function createItemNode(
     const labelItem = item as MenuItemLabel;
     const el = document.createElement("div");
     el.setAttribute("role", "presentation");
-    el.className = "cm-item cm-item-label";
+    el.className = `${CLASS_ITEM} ${CLASS_ITEM_LABEL}`;
     if (labelItem.className) el.classList.add(labelItem.className);
     if (labelItem.id) el.id = labelItem.id;
     const labelSpan = document.createElement("span");
-    labelSpan.className = "cm-label";
+    labelSpan.className = CLASS_LABEL;
     labelSpan.textContent = labelItem.label;
     el.appendChild(labelSpan);
     return el;
@@ -190,13 +214,13 @@ function createItemNode(
       el = chk.render(chk);
     } else {
       el = document.createElement("div");
-      el.className = "cm-item cm-item-checkbox";
+      el.className = `${CLASS_ITEM} ${CLASS_ITEM_CHECKBOX}`;
       if (chk.className) el.classList.add(chk.className);
-      if (chk.checked) el.classList.add("cm-checked");
+      if (chk.checked) el.classList.add(CLASS_CHECKED);
       const checkSpan = document.createElement("span");
       checkSpan.setAttribute("aria-hidden", "true");
       const hasCustomCheck = chk.icon || chk.uncheckedIcon;
-      checkSpan.className = "cm-check" + (hasCustomCheck ? " cm-check--custom" : "");
+      checkSpan.className = CLASS_CHECK + (hasCustomCheck ? ` ${CLASS_CHECK_CUSTOM}` : "");
       if (chk.checked && chk.checkedClassName) checkSpan.classList.add(...chk.checkedClassName.trim().split(/\s+/));
       if (!chk.checked && chk.uncheckedClassName) checkSpan.classList.add(...chk.uncheckedClassName.trim().split(/\s+/));
       if (hasCustomCheck) {
@@ -211,14 +235,14 @@ function createItemNode(
       }
       el.appendChild(checkSpan);
       const labelSpan = document.createElement("span");
-      labelSpan.className = "cm-label";
+      labelSpan.className = CLASS_LABEL;
       labelSpan.textContent = chk.label;
       el.appendChild(labelSpan);
       if (chk.leadingIcon) appendIcon(el, chk.leadingIcon);
       if (chk.shortcut) {
         const sc = document.createElement("span");
         sc.setAttribute("aria-hidden", "true");
-        sc.className = "cm-shortcut";
+        sc.className = CLASS_SHORTCUT;
         sc.textContent = chk.shortcut;
         el.appendChild(sc);
       }
@@ -259,13 +283,13 @@ function createItemNode(
       el = radioItem.render(radioItem);
     } else {
       el = document.createElement("div");
-      el.className = "cm-item cm-item-radio";
+      el.className = `${CLASS_ITEM} ${CLASS_ITEM_RADIO}`;
       if (radioItem.className) el.classList.add(radioItem.className);
-      if (radioItem.checked) el.classList.add("cm-checked");
+      if (radioItem.checked) el.classList.add(CLASS_CHECKED);
       const radioSpan = document.createElement("span");
       radioSpan.setAttribute("aria-hidden", "true");
       const hasCustomRadio = radioItem.icon || radioItem.uncheckedIcon;
-      radioSpan.className = "cm-radio" + (hasCustomRadio ? " cm-radio--custom" : "");
+      radioSpan.className = CLASS_RADIO + (hasCustomRadio ? ` ${CLASS_RADIO_CUSTOM}` : "");
       if (radioItem.checked && radioItem.checkedClassName) radioSpan.classList.add(...radioItem.checkedClassName.trim().split(/\s+/));
       if (!radioItem.checked && radioItem.uncheckedClassName) radioSpan.classList.add(...radioItem.uncheckedClassName.trim().split(/\s+/));
       if (hasCustomRadio) {
@@ -280,14 +304,14 @@ function createItemNode(
       }
       el.appendChild(radioSpan);
       const labelSpan = document.createElement("span");
-      labelSpan.className = "cm-label";
+      labelSpan.className = CLASS_LABEL;
       labelSpan.textContent = radioItem.label;
       el.appendChild(labelSpan);
       if (radioItem.leadingIcon) appendIcon(el, radioItem.leadingIcon);
       if (radioItem.shortcut) {
         const sc = document.createElement("span");
         sc.setAttribute("aria-hidden", "true");
-        sc.className = "cm-shortcut";
+        sc.className = CLASS_SHORTCUT;
         sc.textContent = radioItem.shortcut;
         el.appendChild(sc);
       }
@@ -329,20 +353,20 @@ function createItemNode(
     el.setAttribute("aria-haspopup", "menu");
     el.setAttribute("aria-expanded", "false");
     el.setAttribute("tabindex", "-1");
-    el.className = "cm-item cm-submenu-trigger";
+    el.className = `${CLASS_ITEM} ${CLASS_SUBMENU_TRIGGER}`;
     if (sub.className) el.classList.add(sub.className);
     if (sub.id) el.id = sub.id;
     if (sub.disabled) el.setAttribute("aria-disabled", "true");
 
     const label = document.createElement("span");
-    label.className = "cm-label";
+    label.className = CLASS_LABEL;
     label.textContent = sub.label;
     el.appendChild(label);
     if (sub.icon) appendIcon(el, sub.icon);
     if (sub.shortcut) {
       const sc = document.createElement("span");
       sc.setAttribute("aria-hidden", "true");
-      sc.className = "cm-shortcut";
+      sc.className = CLASS_SHORTCUT;
       sc.textContent = sub.shortcut;
       el.appendChild(sc);
     }
@@ -375,17 +399,17 @@ function createItemNode(
     el = action.render(action);
   } else {
     el = document.createElement("div");
-    el.className = "cm-item";
+    el.className = CLASS_ITEM;
     if (action.className) el.classList.add(action.className);
     const label = document.createElement("span");
-    label.className = "cm-label";
+    label.className = CLASS_LABEL;
     label.textContent = action.label;
     el.appendChild(label);
     if (action.icon) appendIcon(el, action.icon);
     if (action.shortcut) {
       const sc = document.createElement("span");
       sc.setAttribute("aria-hidden", "true");
-      sc.className = "cm-shortcut";
+      sc.className = CLASS_SHORTCUT;
       sc.textContent = action.shortcut;
       el.appendChild(sc);
     }
@@ -469,7 +493,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   let menu: MenuItem[] = rawMenu.map(normalizeItem);
   const portal = getPortal(config.portal);
   const wrapper = document.createElement("div");
-  wrapper.className = "cm-wrapper";
+  wrapper.className = CLASS_WRAPPER;
   const root = document.createElement("div");
   root.setAttribute("role", "menu");
   root.setAttribute("aria-orientation", "vertical");
@@ -480,7 +504,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   if (config.theme?.class) root.classList.add(config.theme.class);
   if (config.theme?.tokens) {
     for (const [key, value] of Object.entries(config.theme.tokens)) {
-      root.style.setProperty(key.startsWith("--") ? key : `--cm-${key}`, value);
+      root.style.setProperty(key.startsWith("--") ? key : CSS_VAR_PREFIX + key, value);
     }
   }
   applyAnimationConfig(root, config);
@@ -639,12 +663,12 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     panel.setAttribute("aria-label", sub.label);
     panel.setAttribute("aria-orientation", "vertical");
     panel.setAttribute("tabindex", "-1");
-    panel.className = `${ROOT_CLASS} cm-submenu`;
+    panel.className = `${ROOT_CLASS} ${CLASS_SUBMENU}`;
     panel.addEventListener("mouseenter", cancelSubmenuClose);
     if (config.theme?.class) panel.classList.add(config.theme.class);
     if (config.theme?.tokens) {
       for (const [key, value] of Object.entries(config.theme.tokens)) {
-        panel.style.setProperty(key.startsWith("--") ? key : `--cm-${key}`, value);
+        panel.style.setProperty(key.startsWith("--") ? key : CSS_VAR_PREFIX + key, value);
       }
     }
     applyAnimationConfig(panel, config);
@@ -824,7 +848,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     const target = e.target as HTMLElement;
     const menuEl = target.closest("[role='menu']") as HTMLElement;
     if (!menuEl) return;
-    const isSub = menuEl.classList.contains("cm-submenu");
+    const isSub = menuEl.classList.contains(CLASS_SUBMENU);
     const items = getFocusableItems(menuEl);
     let idx = items.indexOf(target);
     if (idx === -1) {
