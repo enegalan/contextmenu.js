@@ -8,6 +8,7 @@
   --cm-font-size: 14px;
   --cm-border: 1px solid rgba(0, 0, 0, 0.08);
   --cm-separator-bg: rgba(0, 0, 0, 0.08);
+  --cm-separator-margin: 4px 8px;
   --cm-item-hover-bg: rgba(0, 0, 0, 0.06);
   --cm-item-active-bg: rgba(0, 0, 0, 0.1);
   --cm-disabled-opacity: 0.5;
@@ -104,7 +105,7 @@
 
 .cm-separator {
   height: 1px;
-  margin: 4px 8px;
+  margin: var(--cm-separator-margin);
   padding: 0;
   background: var(--cm-separator-bg);
 }
