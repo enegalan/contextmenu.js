@@ -1,5 +1,7 @@
 # contextmenu.js
 
+<img src="logo.png" width="512" height="512" alt="contextmenu.js" />
+
 A smooth, customizable context-menu library. TypeScript-first, framework-agnostic, with keyboard and screen-reader support.
 
 ## Install
