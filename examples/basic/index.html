@@ -140,15 +140,24 @@
     };
 
     const menuItems = [
-      { label: "Copy", shortcut: "Ctrl+C", onSelect: () => console.log("Copy") },
-      { label: "Paste", shortcut: "Ctrl+V", onSelect: ({ close }) => { console.log("Paste"); close(); } },
+      { label: "Copy", shortcut: "Ctrl+C", onClick: () => console.log("Copy") },
+      { label: "Paste", shortcut: "Ctrl+V", onClick: ({ close }) => { console.log("Paste"); close(); } },
+      { label: "Save", shortcut: "Ctrl+S", disabled: true, onClick: () => console.log("Save") },
       { type: "separator" },
       {
         type: "submenu",
         label: "More",
         children: [
-          { label: "Rename", onSelect: () => console.log("Rename") },
-          { label: "Delete", onSelect: () => console.log("Delete") },
+          { label: "Rename", onClick: () => console.log("Rename") },
+          { label: "Delete", onClick: () => console.log("Delete") },
+        ],
+      },
+      {
+        type: "submenu",
+        label: "Disabled submenu",
+        disabled: true,
+        children: [
+          { label: "Nested", onClick: () => console.log("Nested") },
         ],
       },
     ];

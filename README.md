@@ -65,7 +65,7 @@ Returns an instance with:
 ### Menu items
 
 - **Action**: `{ label, icon?, shortcut?, disabled?, onClick?, render?, ... }` – `onClick(event)` receives `{ item, nativeEvent, close }`. Optional `render(item)` returns a custom `HTMLElement` (library still sets role/tabindex/aria).
-- **Submenu**: `{ type: "submenu", label, children: MenuItem[], ... }` – Nested menus; open on hover or Arrow Right / Enter.
+- **Submenu**: `{ type: "submenu", label, children: MenuItem[], disabled?, ... }` – Nested menus; open on hover or Arrow Right / Enter. When `disabled` is true, the submenu cannot be opened.
 - **Separator**: `{ type: "separator" }`.
 
 ## Theming
@@ -73,7 +73,7 @@ Returns an instance with:
 Load the default styles and override with CSS variables:
 
 ```css
-@import "contextmenu.js/src/default-styles.css";
+@import "contextmenu.js/src/style.css";
 
 .cm-menu {
   --cm-bg: #1e1e1e;
@@ -86,17 +86,10 @@ Load the default styles and override with CSS variables:
 
 ```css
 @import "contextmenu.js/src/default-styles.css";
-@import "contextmenu.js/src/dark-mode-styles.css";
 ```
 
-```js
-createContextMenu({
-  menu: [...],
-  theme: { class: "cm-theme-dark" },
-});
-```
 
-Or pass tokens when creating the menu:
+Pass tokens when creating the menu:
 
 ```js
 createContextMenu({
@@ -123,7 +116,7 @@ npm install
 npm run build
 ```
 
-Output: `dist/index.js` (ESM), `dist/index.cjs` (CJS), `dist/index.d.ts`. Default styles remain in `src/default-styles.css` (no build step).
+Output: `dist/index.js` (ESM), `dist/index.cjs` (CJS), `dist/index.d.ts`. Default styles remain in `src/style.css` (no build step).
 
 ## Example
 
