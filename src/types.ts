@@ -49,6 +49,20 @@ export interface ShortcutPart {
 }
 
 /**
+ * Optional event listener or listener with EventListenerOptions for a menu item.
+ */
+export type EventRegistryEntry<K extends keyof HTMLElementEventMap = keyof HTMLElementEventMap> =
+  | ((e: HTMLElementEventMap[K]) => void)
+  | { listener: (e: HTMLElementEventMap[K]) => void; options?: EventListenerOptions };
+
+/**
+ * Map of DOM event names to handlers. Each value is either a listener or { listener, options? }.
+ */
+export type EventRegistry = {
+  [K in keyof HTMLElementEventMap]?: EventRegistryEntry<K>;
+};
+
+/**
  * Base properties for all menu items.
  */
 export type MenuItemBase = {
@@ -70,6 +84,8 @@ export type MenuItemBase = {
   variant?: MenuItemVariant;
   /** CSS class(es) on the item. */
   className?: string;
+  /** Optional custom DOM event handlers on the item element. */
+  events?: EventRegistry | (() => EventRegistry);
 };
 
 /**
@@ -134,6 +150,8 @@ export type MenuItemSeparator = {
   id?: string;
   /** CSS class(es) on the separator. */
   className?: string;
+  /** Optional custom DOM event handlers on the separator element. */
+  events?: EventRegistry | (() => EventRegistry);
 };
 
 /**
@@ -212,6 +230,8 @@ export type MenuItemLabel = {
   id?: string;
   /** CSS class(es) on the label. */
   className?: string;
+  /** Optional custom DOM event handlers on the label element. */
+  events?: EventRegistry | (() => EventRegistry);
 };
 
 /**

@@ -5,6 +5,7 @@ import type {
   ContextMenuConfig,
   ContextMenuInstance,
   ContextMenuState,
+  EventRegistry,
   MenuItem,
   MenuItemAction,
   MenuItemCheckbox,
@@ -530,6 +531,21 @@ function addItemHoverListeners(
 }
 
 /**
+ * Attach custom DOM event handlers from an item's events registry to the element.
+ * @param el - The element.
+ * @param events - Event registry or function that returns it.
+ */
+function attachItemEvents(el: HTMLElement, events: EventRegistry | (() => EventRegistry) | undefined): void {
+  if (events == null) return;
+  const registry = typeof events === "function" ? events() : events;
+  for (const [eventName, entry] of Object.entries(registry)) {
+    if (entry == null) continue;
+    if (typeof entry === "function") el.addEventListener(eventName, entry as EventListener);
+    else el.addEventListener(eventName, entry.listener as EventListener, entry.options);
+  }
+}
+
+/**
  * Append the state indicator to the element.
  * @param el - The element.
  * @param checked - The checked state.
@@ -705,6 +721,7 @@ function createStateItemNode(
   setItemIdDisabled(el, item.id, item.disabled);
   if (item.loading) applyItemLoadingState(el, item, getSpinnerOptions);
   addItemHoverListeners(el, item, { onHoverFocus, onEnterParentItem, onItemHoverCallback });
+  attachItemEvents(el, item.events);
 
   let handleTypeAction: (e: MouseEvent) => void;
   if (type === "checkbox") {
@@ -772,6 +789,7 @@ function createItemNode(
     el.setAttribute("role", "separator");
     el.className = CLASS_SEPARATOR;
     addClasses(el, item.className);
+    if ("events" in item && item.events) attachItemEvents(el, item.events);
     return el;
   }
 
@@ -786,6 +804,7 @@ function createItemNode(
     labelSpan.className = CLASS_LABEL;
     labelSpan.textContent = labelItem.label;
     el.appendChild(labelSpan);
+    if ("events" in labelItem && labelItem.events) attachItemEvents(el, labelItem.events);
     return el;
   }
 
@@ -832,6 +851,7 @@ function createItemNode(
       if (sub.disabled) return;
       triggerSubmenu(sub, el);
     });
+    attachItemEvents(el, sub.events);
     return el;
   }
 
@@ -869,6 +889,7 @@ function createItemNode(
       } else window.location.href = linkItem.href;
       close(linkItem);
     });
+    attachItemEvents(el, linkItem.events);
     return el;
   }
 
@@ -898,6 +919,7 @@ function createItemNode(
     action.onClick(event);
     if (action.closeOnAction !== false) close(action);
   });
+  attachItemEvents(el, action.events);
   return el;
 }
 

@@ -157,6 +157,23 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 - `type: "label"`, `label` (string), optional `id`, `className`.
 
+**Custom events**
+
+Every menu item has an optional `events` property: `EventRegistry | (() => EventRegistry)`. `EventRegistry` is a map of DOM event names to either a listener function or an object `{ listener, options? }` (where `options` is `EventListenerOptions`, e.g. `{ passive: true }`). Handlers are attached to the item’s DOM element.
+
+```js
+{
+  label: "Hover here!",
+  events: {
+    mouseenter: (e) => { e.target.style.animation = "blinker 1s linear infinite"; },
+    mouseleave: {
+      listener: (e) => { e.target.style.animation = ""; },
+      options: { passive: true }
+    }
+  }
+}
+```
+
 ---
 
 ## Shortcut display (symbols)
