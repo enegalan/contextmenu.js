@@ -1,7 +1,9 @@
 {
-  "name": "contextmenu.js",
+  "name": "@enegalan/contextmenu.js",
   "version": "1.4.0",
   "description": "A smooth and highly customizable JavaScript context-menu library",
+  "license": "MIT",
+  "author": "Eneko Galan",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -15,7 +17,20 @@
     "./dist/style.css": "./dist/style.css"
   },
   "sideEffects": false,
-  "files": ["dist", "src/style.css"],
+  "files": ["dist"],
+  "keywords": [
+    "context-menu",
+    "contextmenu",
+    "right-click",
+    "menu",
+    "dropdown",
+    "vanilla-js",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/egalan/contextmenu.js.git"
+  },
   "scripts": {
     "build": "tsup && csso src/style.css -o dist/style.css",
     "dev": "npm run build && concurrently \"tsup --watch\" \"vite\""

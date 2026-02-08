@@ -7,14 +7,14 @@ A smooth, customizable context-menu library. TypeScript-first, framework-agnosti
 ## Install
 
 ```bash
-npm install contextmenu.js
+npm install @enegalan/contextmenu.js
 ```
 
 ## Quick start
 
 ```js
-import { createContextMenu } from "contextmenu.js";
-import "contextmenu.js/dist/style.css";
+import { createContextMenu } from "@enegalan/contextmenu.js";
+import "@enegalan/contextmenu.js/dist/style.css";
 
 const menu = createContextMenu({
   menu: [
@@ -238,7 +238,7 @@ Each icon is wrapped in a span with class `.cm-shortcut-icon` so you can size or
 Load the default CSS and override with variables:
 
 ```css
-@import "contextmenu.js/dist/style.css";
+@import "@enegalan/contextmenu.js/dist/style.css";
 
 .cm-menu {
   --cm-bg: #1e1e1e;
