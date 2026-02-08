@@ -101,7 +101,7 @@ createContextMenu({
 });
 ```
 
-Variables: `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-font-size`, `--cm-border`, `--cm-menu-padding`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-disabled-opacity`, `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-z-index`.
+Variables: `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-font-size`, `--cm-border`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-disabled-opacity`, `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-z-index`.
 
 ## Accessibility
 

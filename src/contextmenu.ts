@@ -230,15 +230,12 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   const portal = getPortal(config.portal);
   const wrapper = document.createElement("div");
   wrapper.className = "cm-wrapper";
-  wrapper.style.cssText =
-    "position:fixed;inset:0;pointer-events:none;z-index:9999";
   const root = document.createElement("div");
   root.setAttribute("role", "menu");
   root.setAttribute("aria-orientation", "vertical");
   root.setAttribute("tabindex", "-1");
   root.className = ROOT_CLASS;
-  root.style.cssText =
-    "position:fixed;display:none;pointer-events:auto;min-width:8rem;outline:none;";
+  root.style.cssText = "display:none;";
 
   if (config.theme?.class) root.classList.add(config.theme.class);
   if (config.theme?.tokens) {
@@ -370,7 +367,6 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     panel.setAttribute("aria-orientation", "vertical");
     panel.setAttribute("tabindex", "-1");
     panel.className = `${ROOT_CLASS} cm-submenu`;
-    panel.style.cssText = "position:fixed;min-width:8rem;outline:none;pointer-events:auto;";
     panel.addEventListener("mouseenter", cancelSubmenuClose);
     if (config.theme?.class) panel.classList.add(config.theme.class);
     if (config.theme?.tokens) {
