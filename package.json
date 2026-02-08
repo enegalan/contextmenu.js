@@ -14,16 +14,14 @@
     }
   },
   "sideEffects": false,
-  "files": [
-    "dist",
-    "src/style.css"
-  ],
+  "files": ["dist", "src/style.css"],
   "scripts": {
     "build": "tsup",
     "dev": "npm run build && concurrently \"tsup --watch\" \"vite\""
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "terser": "^5.36.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.3"

@@ -6,5 +6,9 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  minify: true,
+  target: "esnext",
+  minify: "terser",
+  terserOptions: {
+    compress: { passes: 2 },
+  },
 });
