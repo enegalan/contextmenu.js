@@ -190,6 +190,18 @@ createContextMenu({
 
 ---
 
+## Bundle size
+
+Build output is minified. Approximate sizes:
+
+| Asset | Minified | Gzipped |
+|-------|----------|---------|
+| `dist/index.js` (ESM) | ~23 KB | ~6.7 KB |
+| `dist/index.cjs` (CJS) | ~23 KB | ~6.9 KB |
+| `src/style.css` | ~7.5 KB | ~1.7 KB |
+
+---
+
 ## Build
 
 ```bash
