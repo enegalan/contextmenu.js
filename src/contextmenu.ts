@@ -4,8 +4,14 @@ import type {
   ContextMenuInstance,
   MenuItem,
   MenuItemAction,
+  MenuItemCheckbox,
+  MenuItemLabel,
+  MenuItemRadio,
   MenuItemSubmenu,
   MenuClickEvent,
+  MenuCheckboxChangeEvent,
+  MenuRadioSelectEvent,
+  OpenAtElementOptions,
   SubmenuArrowConfig,
 } from "./types.js";
 
@@ -23,9 +29,10 @@ function getPortal(portal: ContextMenuConfig["portal"]): HTMLElement {
 function normalizeItem(raw: MenuItem): MenuItem {
   const item = { ...raw } as MenuItem;
   if ("visible" in item && item.visible === undefined) (item as MenuItemAction).visible = true;
-  if ("type" in item && !("type" in item && item.type)) {
+  const hasExplicitType = "type" in raw && (raw as { type?: string }).type != null && (raw as { type?: string }).type !== "";
+  if (!hasExplicitType) {
     if ("children" in item) (item as unknown as MenuItemSubmenu).type = "submenu";
-    else if ("label" in item) (item as MenuItemAction).type = "item";
+    else if ("label" in item && !("children" in item)) (item as MenuItemAction).type = "item";
   }
   if ("children" in item && item.type === "submenu") {
     (item as MenuItemSubmenu).children = (item as MenuItemSubmenu).children.map(normalizeItem);
@@ -92,11 +99,8 @@ function appendIcon(el: HTMLElement, icon: string | HTMLElement): void {
   const wrap = document.createElement("span");
   wrap.setAttribute("aria-hidden", "true");
   wrap.className = "cm-icon";
-  if (typeof icon === "string") {
-    wrap.textContent = icon;
-  } else {
-    wrap.appendChild(icon);
-  }
+  if (typeof icon === "string") wrap.textContent = icon;
+  else wrap.appendChild(icon);
   el.appendChild(wrap);
 }
 
@@ -133,13 +137,9 @@ function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): vo
       const tmp = document.createElement("div");
       tmp.innerHTML = icon;
       while (tmp.firstChild) wrap.appendChild(tmp.firstChild);
-    } else {
-      wrap.appendChild(icon.cloneNode(true));
-    }
-  } else {
-    if (config.size !== undefined) {
-      wrap.style.setProperty("--cm-submenu-arrow-size", sizeToCss(config.size));
-    }
+    } else wrap.appendChild(icon.cloneNode(true));
+  } else if (config.size !== undefined) {
+    wrap.style.setProperty("--cm-submenu-arrow-size", sizeToCss(config.size));
   }
   parent.appendChild(wrap);
 }
@@ -155,7 +155,8 @@ function createItemNode(
   scheduleSubmenuClose?: (triggerEl: HTMLElement) => void,
   onHoverFocus?: (el: HTMLElement) => void,
   onEnterParentItem?: (el: HTMLElement) => void,
-  submenuArrowConfig?: SubmenuArrowConfig | null
+  submenuArrowConfig?: SubmenuArrowConfig | null,
+  refreshContent?: () => void
 ): HTMLElement | null {
   const arrowConfig = submenuArrowConfig ?? null;
   if ("visible" in item && item.visible === false) return null;
@@ -165,6 +166,158 @@ function createItemNode(
     el.setAttribute("role", "separator");
     el.className = "cm-separator";
     if (item.className) el.classList.add(item.className);
+    return el;
+  }
+
+  if (item.type === "label") {
+    const labelItem = item as MenuItemLabel;
+    const el = document.createElement("div");
+    el.setAttribute("role", "presentation");
+    el.className = "cm-item cm-item-label";
+    if (labelItem.className) el.classList.add(labelItem.className);
+    if (labelItem.id) el.id = labelItem.id;
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "cm-label";
+    labelSpan.textContent = labelItem.label;
+    el.appendChild(labelSpan);
+    return el;
+  }
+
+  if (item.type === "checkbox") {
+    const chk = item as MenuItemCheckbox;
+    let el: HTMLElement;
+    if (chk.render) {
+      el = chk.render(chk);
+    } else {
+      el = document.createElement("div");
+      el.className = "cm-item cm-item-checkbox";
+      if (chk.className) el.classList.add(chk.className);
+      if (chk.checked) el.classList.add("cm-checked");
+      const checkSpan = document.createElement("span");
+      checkSpan.setAttribute("aria-hidden", "true");
+      const hasCustomCheck = chk.icon || chk.uncheckedIcon;
+      checkSpan.className = "cm-check" + (hasCustomCheck ? " cm-check--custom" : "");
+      if (chk.checked && chk.checkedClassName) checkSpan.classList.add(...chk.checkedClassName.trim().split(/\s+/));
+      if (!chk.checked && chk.uncheckedClassName) checkSpan.classList.add(...chk.uncheckedClassName.trim().split(/\s+/));
+      if (hasCustomCheck) {
+        const indicatorIcon = chk.checked ? chk.icon : chk.uncheckedIcon;
+        if (indicatorIcon) {
+          if (typeof indicatorIcon === "string") {
+            checkSpan.innerHTML = indicatorIcon;
+          } else {
+            checkSpan.appendChild(indicatorIcon.cloneNode(true));
+          }
+        }
+      }
+      el.appendChild(checkSpan);
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "cm-label";
+      labelSpan.textContent = chk.label;
+      el.appendChild(labelSpan);
+      if (chk.leadingIcon) appendIcon(el, chk.leadingIcon);
+      if (chk.shortcut) {
+        const sc = document.createElement("span");
+        sc.setAttribute("aria-hidden", "true");
+        sc.className = "cm-shortcut";
+        sc.textContent = chk.shortcut;
+        el.appendChild(sc);
+      }
+    }
+    (el as unknown as { _cmCheckbox?: MenuItemCheckbox })._cmCheckbox = chk;
+    el.setAttribute("role", "menuitemcheckbox");
+    el.setAttribute("aria-checked", chk.checked ? "true" : "false");
+    el.setAttribute("tabindex", "-1");
+    if (chk.id) el.id = chk.id;
+    if (chk.disabled) el.setAttribute("aria-disabled", "true");
+    el.addEventListener("mouseenter", () => {
+      onHoverFocus?.(el);
+      onEnterParentItem?.(el);
+      if (chk.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
+    });
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (chk.disabled || !chk.onChange) return;
+      const event: MenuCheckboxChangeEvent = {
+        item: chk,
+        checked: !chk.checked,
+        nativeEvent: e,
+        close,
+      };
+      chk.onChange(event);
+      refreshContent?.();
+      const shouldClose = chk.closeOnAction !== false;
+      if (shouldClose) close();
+    });
+    return el;
+  }
+
+  if (item.type === "radio") {
+    const radioItem = item as MenuItemRadio;
+    let el: HTMLElement;
+    if (radioItem.render) {
+      el = radioItem.render(radioItem);
+    } else {
+      el = document.createElement("div");
+      el.className = "cm-item cm-item-radio";
+      if (radioItem.className) el.classList.add(radioItem.className);
+      if (radioItem.checked) el.classList.add("cm-checked");
+      const radioSpan = document.createElement("span");
+      radioSpan.setAttribute("aria-hidden", "true");
+      const hasCustomRadio = radioItem.icon || radioItem.uncheckedIcon;
+      radioSpan.className = "cm-radio" + (hasCustomRadio ? " cm-radio--custom" : "");
+      if (radioItem.checked && radioItem.checkedClassName) radioSpan.classList.add(...radioItem.checkedClassName.trim().split(/\s+/));
+      if (!radioItem.checked && radioItem.uncheckedClassName) radioSpan.classList.add(...radioItem.uncheckedClassName.trim().split(/\s+/));
+      if (hasCustomRadio) {
+        const indicatorIcon = radioItem.checked ? radioItem.icon : radioItem.uncheckedIcon;
+        if (indicatorIcon) {
+          if (typeof indicatorIcon === "string") {
+            radioSpan.innerHTML = indicatorIcon;
+          } else {
+            radioSpan.appendChild(indicatorIcon.cloneNode(true));
+          }
+        }
+      }
+      el.appendChild(radioSpan);
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "cm-label";
+      labelSpan.textContent = radioItem.label;
+      el.appendChild(labelSpan);
+      if (radioItem.leadingIcon) appendIcon(el, radioItem.leadingIcon);
+      if (radioItem.shortcut) {
+        const sc = document.createElement("span");
+        sc.setAttribute("aria-hidden", "true");
+        sc.className = "cm-shortcut";
+        sc.textContent = radioItem.shortcut;
+        el.appendChild(sc);
+      }
+    }
+    (el as unknown as { _cmRadio?: MenuItemRadio })._cmRadio = radioItem;
+    el.setAttribute("role", "menuitemradio");
+    el.setAttribute("aria-checked", radioItem.checked ? "true" : "false");
+    el.setAttribute("tabindex", "-1");
+    if (radioItem.id) el.id = radioItem.id;
+    if (radioItem.disabled) el.setAttribute("aria-disabled", "true");
+    el.addEventListener("mouseenter", () => {
+      onHoverFocus?.(el);
+      onEnterParentItem?.(el);
+      if (radioItem.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
+    });
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (radioItem.disabled || !radioItem.onSelect) return;
+      const event: MenuRadioSelectEvent = {
+        item: radioItem,
+        value: radioItem.value,
+        nativeEvent: e,
+        close,
+      };
+      radioItem.onSelect(event);
+      refreshContent?.();
+      const shouldClose = radioItem.closeOnAction !== false;
+      if (shouldClose) close();
+    });
     return el;
   }
 
@@ -257,13 +410,17 @@ function createItemNode(
       close,
     };
     action.onClick(event);
+    const shouldClose = action.closeOnAction !== false;
+    if (shouldClose) close();
   });
   return el;
 }
 
 function getFocusableItems(menuEl: HTMLElement): HTMLElement[] {
   return Array.from(
-    menuEl.querySelectorAll<HTMLElement>("[role='menuitem']:not([aria-disabled='true'])")
+    menuEl.querySelectorAll<HTMLElement>(
+      "[role='menuitem']:not([aria-disabled='true']), [role='menuitemcheckbox']:not([aria-disabled='true']), [role='menuitemradio']:not([aria-disabled='true'])"
+    )
   );
 }
 
@@ -289,8 +446,27 @@ function makeHoverFocusHandler(menuEl: HTMLElement): (el: HTMLElement) => void {
   };
 }
 
+function deepCloneMenu(items: MenuItem[]): MenuItem[] {
+  return items.map((item) => {
+    const clone = { ...item } as MenuItem;
+    if ("children" in clone && clone.type === "submenu") {
+      (clone as MenuItemSubmenu).children = deepCloneMenu((clone as MenuItemSubmenu).children);
+    }
+    return clone;
+  });
+}
+
+function getCoordsFromAnchor(anchor: { x: number; y: number } | DOMRect): { x: number; y: number } {
+  if ("width" in anchor && "height" in anchor) {
+    const rect = anchor as DOMRect;
+    return { x: rect.left + rect.width / 2, y: rect.top };
+  }
+  return anchor as { x: number; y: number };
+}
+
 export function createContextMenu(config: ContextMenuConfig): ContextMenuInstance {
-  let menu: MenuItem[] = (config.menu ?? []).map(normalizeItem);
+  const rawMenu = typeof config.menu === "function" ? config.menu() : (config.menu ?? []);
+  let menu: MenuItem[] = rawMenu.map(normalizeItem);
   const portal = getPortal(config.portal);
   const wrapper = document.createElement("div");
   wrapper.className = "cm-wrapper";
@@ -474,7 +650,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     applyAnimationConfig(panel, config);
 
     sub.children.forEach((child) => {
-      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig);
+      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent);
       if (node) panel.appendChild(node);
     });
 
@@ -483,12 +659,19 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     const padding = config.position?.padding ?? 8;
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
-    let left = triggerRect.right + 2;
-    let top = triggerRect.top;
+    const isRtl = getComputedStyle(triggerEl).direction === "rtl";
     panel.style.display = "";
     panel.getClientRects();
     const rect = panel.getBoundingClientRect();
-    if (left + rect.width > vw - padding) left = triggerRect.left - rect.width - 2;
+    let left: number;
+    if (isRtl) {
+      left = triggerRect.left - rect.width - 2;
+      if (left < padding) left = triggerRect.right + 2;
+    } else {
+      left = triggerRect.right + 2;
+      if (left + rect.width > vw - padding) left = triggerRect.left - rect.width - 2;
+    }
+    let top = triggerRect.top;
     if (top + rect.height > vh - padding) top = vh - rect.height - padding;
     if (top < padding) top = padding;
     panel.style.left = `${left}px`;
@@ -570,23 +753,42 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     openSubmenuPanel(sub, triggerEl);
   }
 
+  function refreshContent(): void {
+    if (isOpen && typeof config.menu === "function") {
+      menu = config.menu().map(normalizeItem);
+      buildRootContent();
+    }
+  }
+
   function buildRootContent(): void {
     root.innerHTML = "";
     menu.forEach((item) => {
-      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterMenuItem, submenuArrowConfig);
+      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterMenuItem, submenuArrowConfig, refreshContent);
       if (node) root.appendChild(node);
     });
   }
 
   function open(xOrEvent?: number | MouseEvent, y?: number): void {
+    if (typeof config.menu === "function") {
+      menu = config.menu().map(normalizeItem);
+    }
+    const openEvent = typeof xOrEvent === "object" && xOrEvent !== null ? xOrEvent : undefined;
     let x: number;
     let yCoord: number;
-    if (typeof xOrEvent === "object" && xOrEvent !== null) {
-      x = xOrEvent.clientX;
-      yCoord = xOrEvent.clientY;
+    if (openEvent) {
+      x = openEvent.clientX;
+      yCoord = openEvent.clientY;
     } else {
-      x = xOrEvent ?? 0;
-      yCoord = y ?? 0;
+      const noCoords = xOrEvent === undefined && y === undefined;
+      if (noCoords && config.getAnchor) {
+        const anchor = config.getAnchor();
+        const coords = getCoordsFromAnchor(anchor);
+        x = coords.x;
+        yCoord = coords.y;
+      } else {
+        x = (xOrEvent as number) ?? 0;
+        yCoord = y ?? 0;
+      }
     }
     cancelLeaveAnimation();
     if (isOpen) close();
@@ -604,7 +806,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     const anim = config.animation;
     if (anim?.disabled) {
       root.classList.add(ROOT_OPEN_CLASS);
-      config.onOpen?.();
+      config.onOpen?.(openEvent);
       const items = getFocusableItems(root);
       if (items.length) setRovingTabindex(items, 0);
       return;
@@ -612,7 +814,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     root.getClientRects();
     requestAnimationFrame(() => {
       root.classList.add(ROOT_OPEN_CLASS);
-      config.onOpen?.();
+      config.onOpen?.(openEvent);
       const items = getFocusableItems(root);
       if (items.length) setRovingTabindex(items, 0);
     });
@@ -761,6 +963,52 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     menu = newMenu.map(normalizeItem);
   }
 
+  function openAtElement(element: HTMLElement, options?: OpenAtElementOptions): void {
+    const placement = options?.placement ?? "bottom-start";
+    const offset = options?.offset ?? { x: 0, y: 0 };
+    const rect = element.getBoundingClientRect();
+    let x: number;
+    let y: number;
+    switch (placement) {
+      case "bottom-start":
+        x = rect.left;
+        y = rect.bottom;
+        break;
+      case "bottom-end":
+        x = rect.right;
+        y = rect.bottom;
+        break;
+      case "top-start":
+        x = rect.left;
+        y = rect.top;
+        break;
+      case "top-end":
+        x = rect.right;
+        y = rect.top;
+        break;
+      case "left-start":
+        x = rect.left;
+        y = rect.top;
+        break;
+      case "left-end":
+        x = rect.left;
+        y = rect.bottom;
+        break;
+      case "right-start":
+        x = rect.right;
+        y = rect.top;
+        break;
+      case "right-end":
+        x = rect.right;
+        y = rect.bottom;
+        break;
+      default:
+        x = rect.left;
+        y = rect.bottom;
+    }
+    open(x + offset.x, y + offset.y);
+  }
+
   const instance: ContextMenuInstance = {
     open,
     close,
@@ -768,9 +1016,20 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       if (isOpen) close();
       else open(x ?? 0, y ?? 0);
     },
+    openAtElement,
+    isOpen: () => isOpen,
+    getMenu: () => deepCloneMenu(menu),
     bind,
     destroy,
     setMenu,
   };
+
+  const bindConfig = config.bind;
+  if (bindConfig != null) {
+    const el = bindConfig instanceof HTMLElement ? bindConfig : bindConfig.element;
+    const options = bindConfig instanceof HTMLElement ? undefined : bindConfig.options;
+    bind(el, options);
+  }
+
   return instance;
 }

@@ -15,6 +15,12 @@
     button { padding: 0.5rem 1rem; cursor: pointer; }
     .cm-theme-high-contrast .cm-item:hover:not([aria-disabled="true"]),
     .cm-theme-high-contrast .cm-item:focus-visible { color: #fff; }
+    .custom-render-row { font-style: italic; }
+    .custom-render-indicator { margin-right: 8px; font-weight: bold; opacity: 0.9; }
+    .custom-checkbox-checked { filter: brightness(0.9); }
+    .custom-checkbox-unchecked { opacity: 0.7; }
+    .cm-radio.custom-radio-checked { color: var(--cm-fg, #1a1a1a); }
+    .cm-radio.custom-radio-unchecked { opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -155,36 +161,143 @@
       },
     };
 
-    const menuItems = [
-      { label: "Copy", shortcut: "Ctrl+C", onClick: () => console.log("Copy") },
-      { label: "Paste", shortcut: "Ctrl+V", onClick: ({ close }) => { console.log("Paste"); close(); } },
-      { label: "Save", shortcut: "Ctrl+S", disabled: true, onClick: () => console.log("Save") },
-      { type: "separator" },
-      {
-        type: "submenu",
-        label: "More",
-        children: [
-          { label: "Rename", onClick: () => console.log("Rename") },
-          { label: "Delete", onClick: () => console.log("Delete") },
-          {
-            type: "submenu",
-            label: "Nested actions",
-            children: [
-              { label: "Duplicate", onClick: () => console.log("Duplicate") },
-              { label: "Move to…", onClick: () => console.log("Move to") },
-            ],
+    let showGrid = false;
+    let compactList = false;
+    let darkMode = false;
+    let sortBy = "name";
+    let customCheck = false;
+
+    const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    const UNCHECKED_BOX_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="100%" height="100%"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>';
+    const RADIO_DOT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><circle cx="12" cy="12" r="8"/></svg>';
+    const RADIO_EMPTY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="100%" height="100%"><circle cx="12" cy="12" r="8"/></svg>';
+
+    function getMenuItems() {
+      return [
+        { label: "Copy", icon: "📋", shortcut: "Ctrl+C", onClick: () => console.log("Copy") },
+        { label: "Paste", icon: "📄", shortcut: "Ctrl+V", onClick: ({ close }) => { console.log("Paste"); close(); } },
+        { label: "Save", icon: "💾", shortcut: "Ctrl+S", disabled: true, onClick: () => console.log("Save") },
+        { type: "separator" },
+        { type: "label", label: "View" },
+        {
+          type: "checkbox",
+          label: "Show grid",
+          checked: showGrid,
+          onChange: ({ checked }) => {
+            showGrid = checked;
+            console.log("Show grid:", checked);
           },
-        ],
-      },
-      {
-        type: "submenu",
-        label: "Disabled submenu",
-        disabled: true,
-        children: [
-          { label: "Nested", onClick: () => console.log("Nested") },
-        ],
-      },
-    ];
+        },
+        {
+          type: "checkbox",
+          label: "Compact list",
+          checked: compactList,
+          leadingIcon: "📋",
+          onChange: ({ checked }) => {
+            compactList = checked;
+            console.log("Compact list:", checked);
+          },
+        },
+        {
+          type: "checkbox",
+          label: "Dark mode",
+          checked: darkMode,
+          icon: CHECK_SVG,
+          uncheckedIcon: UNCHECKED_BOX_SVG,
+          checkedClassName: "custom-checkbox-checked",
+          uncheckedClassName: "custom-checkbox-unchecked",
+          onChange: ({ checked }) => {
+            darkMode = checked;
+            console.log("Dark mode:", checked);
+          },
+        },
+        { type: "separator" },
+        { type: "label", label: "Sort by" },
+        {
+          type: "radio",
+          name: "sort",
+          value: "name",
+          label: "Name",
+          checked: sortBy === "name",
+          leadingIcon: "A",
+          onSelect: ({ value }) => {
+            sortBy = value;
+            console.log("Sort by:", value);
+          },
+        },
+        {
+          type: "radio",
+          name: "sort",
+          value: "date",
+          label: "Date",
+          checked: sortBy === "date",
+          onSelect: ({ value }) => {
+            sortBy = value;
+            console.log("Sort by:", value);
+          },
+        },
+        {
+          type: "radio",
+          name: "sort",
+          value: "size",
+          label: "Size",
+          checked: sortBy === "size",
+          icon: RADIO_DOT_SVG,
+          uncheckedIcon: RADIO_EMPTY_SVG,
+          checkedClassName: "custom-radio-checked",
+          uncheckedClassName: "custom-radio-unchecked",
+          onSelect: ({ value }) => {
+            sortBy = value;
+            console.log("Sort by:", value);
+          },
+        },
+        { type: "separator" },
+        { type: "label", label: "Custom render" },
+        {
+          type: "checkbox",
+          label: "Custom row (render)",
+          checked: customCheck,
+          onChange: ({ checked }) => {
+            customCheck = checked;
+            console.log("Custom check:", checked);
+          },
+          render: (item) => {
+            const el = document.createElement("div");
+            el.className = "cm-item custom-render-row";
+            el.innerHTML = `
+              <span class="custom-render-indicator">${item.checked ? "&#10003;" : "&#9675;"}</span>
+              <span class="cm-label">${item.label}</span>
+            `;
+            return el;
+          },
+        },
+        { type: "separator" },
+        {
+          type: "submenu",
+          label: "More",
+          children: [
+            { label: "Rename", onClick: () => console.log("Rename") },
+            { label: "Delete", onClick: () => console.log("Delete") },
+            {
+              type: "submenu",
+              label: "Nested actions",
+              children: [
+                { label: "Duplicate", onClick: () => console.log("Duplicate") },
+                { label: "Move to…", onClick: () => console.log("Move to") },
+              ],
+            },
+          ],
+        },
+        {
+          type: "submenu",
+          label: "Disabled submenu",
+          disabled: true,
+          children: [
+            { label: "Nested", onClick: () => console.log("Nested") },
+          ],
+        },
+      ];
+    }
 
     let menu = createMenu();
 
@@ -201,7 +314,7 @@
         submenuArrow = { icon: CHEVRON_SVG, size, opacity: 0.8 };
       }
       return createContextMenu({
-        menu: menuItems,
+        menu: getMenuItems,
         submenuArrow,
         theme: theme ?? undefined,
         animation: { enter: 120, leave: 80 },
@@ -213,9 +326,11 @@
       const target = document.getElementById("target");
       const btn = document.getElementById("btn");
       menu.bind(target);
-      btn.onclick = (e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        menu.open(rect.right, rect.bottom);
+      btn.onclick = () => {
+        menu.openAtElement(btn, { placement: "bottom-start" });
+        // or
+        // const rect = btn.getBoundingClientRect();
+        // menu.open(rect.left, rect.top);
       };
     }
 

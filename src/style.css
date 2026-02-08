@@ -18,6 +18,10 @@
   --cm-z-index: 9999;
   --cm-menu-padding: 4px 0;
   --cm-menu-min-width: 8rem;
+  --cm-label-font-size: 0.75em;
+  --cm-label-opacity: 0.7;
+  --cm-check-size: 14px;
+  --cm-radio-size: 14px;
 }
 
 .cm-wrapper {
@@ -156,4 +160,98 @@
   margin: var(--cm-separator-margin);
   padding: 0;
   background: var(--cm-separator-bg);
+}
+
+.cm-item-label {
+  cursor: default;
+  pointer-events: none;
+  font-size: var(--cm-label-font-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: var(--cm-label-opacity);
+}
+
+.cm-item-label:hover {
+  background: transparent;
+}
+
+.cm-item-label .cm-label {
+  flex: none;
+}
+
+.cm-check {
+  flex-shrink: 0;
+  width: var(--cm-check-size);
+  height: var(--cm-check-size);
+  min-width: var(--cm-check-size);
+  min-height: var(--cm-check-size);
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.8;
+  box-sizing: border-box;
+}
+
+.cm-check {
+  position: relative;
+}
+
+.cm-item-checkbox.cm-checked .cm-check {
+  background: currentColor;
+}
+
+.cm-item-checkbox.cm-checked .cm-check::after {
+  content: "\2713";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  font-weight: bold;
+  line-height: 1;
+  color: var(--cm-bg);
+}
+
+.cm-radio {
+  flex-shrink: 0;
+  width: var(--cm-radio-size);
+  height: var(--cm-radio-size);
+  min-width: var(--cm-radio-size);
+  min-height: var(--cm-radio-size);
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.8;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.cm-item-radio.cm-checked .cm-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+/* Custom checkbox/radio: user provides icon; hide default indicator */
+.cm-check.cm-check--custom {
+  border: none;
+  background: transparent;
+}
+
+.cm-item-checkbox.cm-checked .cm-check.cm-check--custom {
+  background: transparent;
+}
+
+.cm-item-checkbox.cm-checked .cm-check.cm-check--custom::after {
+  display: none;
+}
+
+.cm-radio.cm-radio--custom {
+  border: none;
+}
+
+.cm-radio.cm-radio--custom::after {
+  display: none;
 }

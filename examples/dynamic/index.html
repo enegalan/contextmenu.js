@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>contextmenu.js – Dynamic menu</title>
+  <link rel="stylesheet" href="../../src/style.css">
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; }
+    h1 { margin-bottom: 0.5rem; }
+    p.description { color: #666; margin-bottom: 1.5rem; }
+    .list-container {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      min-height: 200px;
+      padding: 0.5rem 0;
+      background: #fafafa;
+    }
+    .list-row {
+      padding: 0.5rem 1rem;
+      margin: 0 0.25rem;
+      border-radius: 4px;
+      cursor: default;
+    }
+    .list-row:hover { background: #eee; }
+    .list-row[data-selected="true"] { background: #e0e7ff; }
+    .list-empty {
+      padding: 2rem;
+      text-align: center;
+      color: #999;
+    }
+    .log {
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      background: #1a1a1a;
+      color: #e5e5e5;
+      border-radius: 6px;
+      font-size: 13px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .log-entry { margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Dynamic menu</h1>
+  <p class="description">
+    Right-click on a row or on the empty area. The menu is built from a function each time it opens,
+    so items depend on the target (row vs container) and on current state (selection, count, recent actions).
+  </p>
+  <div class="list-container" id="list">
+    <div class="list-row" data-id="1">Document.pdf</div>
+    <div class="list-row" data-id="2">Spreadsheet.xlsx</div>
+    <div class="list-row" data-id="3">Notes.txt</div>
+  </div>
+  <div class="log" id="log"></div>
+  <script type="module">
+    import { createContextMenu } from "../../src/index.ts";
+
+    const listEl = document.getElementById("list");
+    const logEl = document.getElementById("log");
+
+    let lastContext = null;
+    let recentActions = [];
+
+    function log(msg) {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function getRows() {
+      return Array.from(listEl.querySelectorAll(".list-row"));
+    }
+
+    function getRowFromTarget(target) {
+      const row = target.closest(".list-row");
+      return row || null;
+    }
+
+    function getSelectedRow() {
+      const selected = listEl.querySelector(".list-row[data-selected='true']");
+      return selected || null;
+    }
+
+    function setSelectedRow(row) {
+      getRows().forEach((r) => r.removeAttribute("data-selected"));
+      if (row) row.setAttribute("data-selected", "true");
+    }
+
+    function getDynamicMenuItems() {
+      const row = lastContext ? getRowFromTarget(lastContext) : null;
+      const rows = getRows();
+      const count = rows.length;
+      const selectedRow = getSelectedRow();
+
+      if (row) {
+        const id = row.getAttribute("data-id");
+        const name = row.textContent.trim();
+        const isSelected = selectedRow === row;
+        return [
+          { type: "label", label: name },
+          { type: "separator" },
+          {
+            label: "Open",
+            onClick: () => {
+              log(`Open: ${name}`);
+              recentActions = [{ action: "Open", name }, ...recentActions].slice(0, 5);
+            },
+          },
+          {
+            label: "Rename",
+            onClick: () => {
+              log(`Rename: ${name}`);
+              recentActions = [{ action: "Rename", name }, ...recentActions].slice(0, 5);
+            },
+          },
+          {
+            label: isSelected ? "Deselect" : "Select",
+            onClick: () => {
+              setSelectedRow(isSelected ? null : row);
+              log(isSelected ? "Deselected" : `Selected: ${name}`);
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Copy name",
+            shortcut: "Ctrl+C",
+            onClick: () => {
+              log(`Copy name: ${name}`);
+              recentActions = [{ action: "Copy name", name }, ...recentActions].slice(0, 5);
+            },
+          },
+          {
+            label: "Delete",
+            onClick: () => {
+              row.remove();
+              log(`Deleted: ${name}`);
+              recentActions = [{ action: "Delete", name }, ...recentActions].slice(0, 5);
+            },
+          },
+          ...(recentActions.length > 0
+            ? [
+                { type: "separator" },
+                {
+                  type: "submenu",
+                  label: "Recent actions",
+                  children: recentActions.map((r) => ({
+                    label: `${r.action}: ${r.name}`,
+                    onClick: () => log(`Repeat: ${r.action} ${r.name}`),
+                  })),
+                },
+              ]
+            : []),
+        ];
+      }
+
+      return [
+        { type: "label", label: "List (empty area)" },
+        { type: "separator" },
+        {
+          label: "Add item",
+          onClick: () => {
+            const n = count + 1;
+            const newRow = document.createElement("div");
+            newRow.className = "list-row";
+            newRow.setAttribute("data-id", String(Date.now()));
+            newRow.textContent = `New item ${n}`;
+            listEl.appendChild(newRow);
+            log(`Added: New item ${n}`);
+            recentActions = [{ action: "Add", name: `New item ${n}` }, ...recentActions].slice(0, 5);
+          },
+        },
+        {
+          label: "Clear all",
+          disabled: count === 0,
+          onClick: () => {
+            getRows().forEach((r) => r.remove());
+            log("Cleared all");
+            recentActions = [{ action: "Clear all", name: "" }, ...recentActions].slice(0, 5);
+          },
+        },
+        { type: "separator" },
+        { type: "label", label: `Items: ${count}` },
+        ...(recentActions.length > 0
+          ? [
+              { type: "separator" },
+              {
+                type: "submenu",
+                label: "Recent actions",
+                children: recentActions.map((r) => ({
+                  label: r.name ? `${r.action}: ${r.name}` : r.action,
+                  onClick: () => log(`Repeat: ${r.action} ${r.name}`),
+                })),
+              },
+            ]
+          : []),
+      ];
+    }
+
+    const menu = createContextMenu({
+      menu: getDynamicMenuItems,
+      position: { padding: 8, flip: true, shift: true },
+      bind: listEl,
+      onOpen: (event) => {
+        lastContext = event?.target ?? null;
+      },
+    });
+  </script>
+</body>
+</html>
