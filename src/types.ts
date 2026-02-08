@@ -1,6 +1,18 @@
 /** Visual variant for menu items (action, submenu, checkbox, radio). Styled via .cm-item--danger, etc. */
 export type MenuItemVariant = "default" | "danger" | "info" | "success" | "warning" | "muted";
 
+/**
+ * Config for the loading spinner. Can be set globally (config.spinner) or per item (loadingIcon, loadingSize, loadingSpeed).
+ */
+export interface SpinnerConfig {
+  /** Custom spinner: SVG string or HTMLElement. Omit to use the default CSS circle. */
+  icon?: string | HTMLElement;
+  /** Size in px (number) or CSS length (e.g. "0.75rem"). */
+  size?: number | string;
+  /** Duration of one full rotation in ms. Default 600. */
+  speed?: number;
+}
+
 export type MenuItemBase = {
   /** The ID of the item. */
   id?: string;
@@ -8,6 +20,14 @@ export type MenuItemBase = {
   disabled?: boolean;
   /** Whether the item is visible. */
   visible?: boolean;
+  /** When true, show loading state and block interaction. */
+  loading?: boolean;
+  /** Custom loading spinner icon (SVG string or HTMLElement). Overrides config.spinner.icon. */
+  loadingIcon?: string | HTMLElement;
+  /** Loading spinner size in px or CSS length. Overrides config.spinner.size. */
+  loadingSize?: number | string;
+  /** Loading spinner rotation speed: ms per full turn. Overrides config.spinner.speed. */
+  loadingSpeed?: number;
   /** Visual variant; adds class cm-item--{variant}. */
   variant?: MenuItemVariant;
   /** CSS class(es) on the item. */
@@ -31,6 +51,8 @@ export type MenuItemAction = MenuItemBase & {
   render?: (item: MenuItemAction) => HTMLElement;
 };
 
+export type SubmenuPlacement = "right" | "left" | "auto";
+
 export type MenuItemSubmenu = MenuItemBase & {
   /** The type of the submenu. */
   type: "submenu";
@@ -42,6 +64,8 @@ export type MenuItemSubmenu = MenuItemBase & {
   shortcut?: string;
   /** The children of the submenu. */
   children: MenuItem[];
+  /** Where to open the submenu relative to the parent. Overrides config.submenuPlacement. */
+  submenuPlacement?: SubmenuPlacement;
 };
 
 export type MenuItemSeparator = {
@@ -122,7 +146,24 @@ export type MenuItemLabel = {
   className?: string;
 };
 
-export type MenuItem = MenuItemAction | MenuItemSubmenu | MenuItemSeparator | MenuItemCheckbox | MenuItemRadio | MenuItemLabel;
+export type MenuItemLink = MenuItemBase & {
+  /** The type of the link. */
+  type: "link";
+  /** The label of the link. */
+  label: string;
+  /** The URL to navigate to. */
+  href: string;
+  /** Optional icon in the link. */
+  icon?: string | HTMLElement;
+  /** Shortcut key for the link. */
+  shortcut?: string;
+  /** Link target, e.g. "_blank". */
+  target?: string;
+  /** Link rel, e.g. "noopener". */
+  rel?: string;
+};
+
+export type MenuItem = MenuItemAction | MenuItemSubmenu | MenuItemSeparator | MenuItemCheckbox | MenuItemRadio | MenuItemLabel | MenuItemLink;
 
 export interface MenuClickEvent {
   /** The item that was clicked. */
@@ -228,6 +269,10 @@ export interface ContextMenuConfig {
   menu: MenuItem[] | (() => MenuItem[]);
   /** The configuration for the submenu arrow. */
   submenuArrow?: boolean | SubmenuArrowConfig;
+  /** Default configuration for the loading spinner. Overridable per item via loadingIcon, loadingSize, loadingSpeed. */
+  spinner?: SpinnerConfig;
+  /** Where to open submenus relative to the parent. "auto" uses RTL and viewport space. */
+  submenuPlacement?: SubmenuPlacement;
   /** The configuration for the theme. */
   theme?: ThemeConfig;
   /** The configuration for the animations. */
@@ -242,6 +287,12 @@ export interface ContextMenuConfig {
   onOpen?: (event?: MouseEvent) => void;
   /** The function to call when the menu is closed. */
   onClose?: () => void;
+  /** Called before the menu opens. Return false (or a Promise resolving to false) to cancel. */
+  onBeforeOpen?: (event?: MouseEvent) => boolean | void | Promise<boolean | void>;
+  /** Called before the menu closes. Return false (or a Promise resolving to false) to cancel. */
+  onBeforeClose?: () => boolean | void | Promise<boolean | void>;
+  /** Called when the user hovers or focuses an interactive item. */
+  onItemHover?: (payload: { item: MenuItem; nativeEvent: MouseEvent | FocusEvent }) => void;
   /** Element to bind so the menu opens on contextmenu and long-press. Same as calling instance.bind(element, options) after creation. */
   bind?: ContextMenuBindConfig;
   /** When true, close the menu on window resize. */
@@ -254,18 +305,20 @@ export interface BindOptions {
 }
 
 export interface ContextMenuInstance {
-  /** The function to open the menu. */
-  open(x?: number, y?: number): void;
-  /** The function to open the menu. */
-  open(event: MouseEvent): void;
-  /** The function to close the menu. */
-  close(): void;
+  /** Opens the menu at coordinates or at the event position. Returns a Promise that resolves with the selected item when the menu closes, or undefined if closed without selection. */
+  open(x?: number, y?: number): Promise<MenuItem | undefined>;
+  /** Opens the menu at the event position. */
+  open(event: MouseEvent): Promise<MenuItem | undefined>;
+  /** Closes the menu. Returns a Promise that resolves when the close animation finishes (or immediately if no animation). */
+  close(): Promise<void>;
   /** The function to toggle the menu. */
   toggle(x?: number, y?: number): void;
   /** The function to open the menu at an element. */
   openAtElement(element: HTMLElement, options?: OpenAtElementOptions): void;
   /** The function to check if the menu is open. */
   isOpen(): boolean;
+  /** Returns the anchor coordinates used for the last open, or null. */
+  getAnchor(): { x: number; y: number } | null;
   /** The function to get the menu. */
   getMenu(): MenuItem[];
   /** The wrapper element (contains root menu and submenus). */
@@ -274,6 +327,8 @@ export interface ContextMenuInstance {
   updateMenu(updater: (current: MenuItem[]) => MenuItem[]): void;
   /** The function to bind the menu to an element. */
   bind(element: HTMLElement, options?: BindOptions): void;
+  /** Removes bind from the given element, or from the currently bound element if no argument. */
+  unbind(element?: HTMLElement): void;
   /** The function to destroy the menu. */
   destroy(): void;
   /** The function to set the menu. */

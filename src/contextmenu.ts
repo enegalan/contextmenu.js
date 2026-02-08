@@ -6,12 +6,14 @@ import type {
   MenuItemAction,
   MenuItemCheckbox,
   MenuItemLabel,
+  MenuItemLink,
   MenuItemRadio,
   MenuItemSubmenu,
   MenuClickEvent,
   MenuCheckboxChangeEvent,
   MenuRadioSelectEvent,
   OpenAtElementOptions,
+  SpinnerConfig,
   SubmenuArrowConfig,
 } from "./types.js";
 import type { MenuItemVariant } from "./types.js";
@@ -28,8 +30,13 @@ import {
   CLASS_SUBMENU_ARROW_ICON,
   CLASS_SEPARATOR,
   CLASS_ITEM,
+  CLASS_ITEM_LOADING,
+  CLASS_ITEM_LEADING,
   CLASS_ITEM_LABEL,
+  CLASS_SPINNER,
+  CLASS_SPINNER_CUSTOM,
   CLASS_LABEL,
+  CSS_VAR_SPINNER_DURATION,
   CLASS_ITEM_CHECKBOX,
   CLASS_CHECKED,
   CLASS_CHECK,
@@ -66,6 +73,7 @@ function normalizeItem(raw: MenuItem): MenuItem {
   const hasExplicitType = "type" in raw && (raw as { type?: string }).type != null && (raw as { type?: string }).type !== "";
   if (!hasExplicitType) {
     if ("children" in item) (item as unknown as MenuItemSubmenu).type = "submenu";
+    else if ("href" in item && (item as MenuItemLink).href != null) (item as unknown as MenuItemLink).type = "link";
     else if ("label" in item && !("children" in item)) (item as MenuItemAction).type = "item";
   }
   if ("children" in item && item.type === "submenu") {
@@ -142,6 +150,39 @@ function sizeToCss(size: number | string): string {
   return typeof size === "number" ? `${size}px` : size;
 }
 
+const DEFAULT_SPINNER_SPEED_MS = 600;
+
+function appendLoadingSpinner(
+  container: HTMLElement,
+  options: SpinnerConfig
+): void {
+  const spinner = document.createElement("span");
+  spinner.className = CLASS_SPINNER;
+  spinner.setAttribute("aria-hidden", "true");
+  const icon = options.icon;
+  const hasCustomIcon = icon !== undefined && icon !== null;
+  if (hasCustomIcon && icon !== undefined) {
+    spinner.classList.add(CLASS_SPINNER_CUSTOM);
+    if (typeof icon === "string") {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = icon;
+      while (tmp.firstChild) spinner.appendChild(tmp.firstChild);
+    } else {
+      spinner.appendChild(icon.cloneNode(true));
+    }
+  }
+  if (options.size !== undefined) {
+    const sizeCss = sizeToCss(options.size);
+    spinner.style.width = sizeCss;
+    spinner.style.height = sizeCss;
+    spinner.style.minWidth = sizeCss;
+    spinner.style.minHeight = sizeCss;
+  }
+  const speedMs = options.speed ?? DEFAULT_SPINNER_SPEED_MS;
+  spinner.style.setProperty(CSS_VAR_SPINNER_DURATION, `${speedMs}ms`);
+  container.appendChild(spinner);
+}
+
 function normalizeSubmenuArrow(
   value: ContextMenuConfig["submenuArrow"]
 ): SubmenuArrowConfig | null {
@@ -180,14 +221,16 @@ function appendSubmenuArrow(parent: HTMLElement, config: SubmenuArrowConfig): vo
 
 function createItemNode(
   item: MenuItem,
-  close: () => void,
+  close: (selectedItem?: MenuItem) => void,
   triggerSubmenu: (item: MenuItemSubmenu, el: HTMLElement) => void,
   scheduleSubmenuOpen?: (sub: MenuItemSubmenu, el: HTMLElement) => void,
   scheduleSubmenuClose?: (triggerEl: HTMLElement) => void,
   onHoverFocus?: (el: HTMLElement) => void,
   onEnterParentItem?: (el: HTMLElement) => void,
   submenuArrowConfig?: SubmenuArrowConfig | null,
-  refreshContent?: () => void
+  refreshContent?: () => void,
+  onItemHoverCallback?: (item: MenuItem, nativeEvent: MouseEvent | FocusEvent) => void,
+  getSpinnerOptions?: (item: MenuItem) => SpinnerConfig
 ): HTMLElement | null {
   const arrowConfig = submenuArrowConfig ?? null;
   if ("visible" in item && item.visible === false) return null;
@@ -243,6 +286,10 @@ function createItemNode(
         }
       }
       el.appendChild(checkSpan);
+      const leadingSlot = document.createElement("span");
+      leadingSlot.className = CLASS_ITEM_LEADING;
+      leadingSlot.setAttribute("aria-hidden", "true");
+      el.appendChild(leadingSlot);
       const labelSpan = document.createElement("span");
       labelSpan.className = CLASS_LABEL;
       labelSpan.textContent = chk.label;
@@ -257,20 +304,38 @@ function createItemNode(
       }
     }
     (el as unknown as { _cmCheckbox?: MenuItemCheckbox })._cmCheckbox = chk;
+    (el as unknown as { _cmItem?: MenuItem })._cmItem = chk;
     el.setAttribute("role", "menuitemcheckbox");
     el.setAttribute("aria-checked", chk.checked ? "true" : "false");
     el.setAttribute("tabindex", "-1");
     if (chk.id) el.id = chk.id;
     if (chk.disabled) el.setAttribute("aria-disabled", "true");
-    el.addEventListener("mouseenter", () => {
+    if (chk.loading) {
+      el.classList.add(CLASS_ITEM_LOADING);
+      el.setAttribute("aria-busy", "true");
+      const opts = getSpinnerOptions?.(chk) ?? {};
+      const leadingSlot = el.querySelector(`.${CLASS_ITEM_LEADING}`) as HTMLElement | null;
+      if (leadingSlot) {
+        appendLoadingSpinner(leadingSlot, opts);
+      } else {
+        const wrap = document.createElement("span");
+        wrap.className = CLASS_ITEM_LEADING;
+        appendLoadingSpinner(wrap, opts);
+        el.insertBefore(wrap, el.querySelector(`.${CLASS_LABEL}`) ?? el.firstChild);
+      }
+    }
+    const fireCheckboxHover = (e: MouseEvent | FocusEvent): void => {
       onHoverFocus?.(el);
       onEnterParentItem?.(el);
+      onItemHoverCallback?.(chk, e);
       if (chk.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
-    });
+    };
+    el.addEventListener("mouseenter", fireCheckboxHover);
+    el.addEventListener("focus", fireCheckboxHover);
     el.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (chk.disabled || !chk.onChange) return;
+      if (chk.disabled || chk.loading || !chk.onChange) return;
       const event: MenuCheckboxChangeEvent = {
         item: chk,
         checked: !chk.checked,
@@ -280,7 +345,7 @@ function createItemNode(
       chk.onChange(event);
       refreshContent?.();
       const shouldClose = chk.closeOnAction !== false;
-      if (shouldClose) close();
+      if (shouldClose) close(chk);
     });
     return el;
   }
@@ -314,6 +379,10 @@ function createItemNode(
         }
       }
       el.appendChild(radioSpan);
+      const leadingSlot = document.createElement("span");
+      leadingSlot.className = CLASS_ITEM_LEADING;
+      leadingSlot.setAttribute("aria-hidden", "true");
+      el.appendChild(leadingSlot);
       const labelSpan = document.createElement("span");
       labelSpan.className = CLASS_LABEL;
       labelSpan.textContent = radioItem.label;
@@ -328,20 +397,38 @@ function createItemNode(
       }
     }
     (el as unknown as { _cmRadio?: MenuItemRadio })._cmRadio = radioItem;
+    (el as unknown as { _cmItem?: MenuItem })._cmItem = radioItem;
     el.setAttribute("role", "menuitemradio");
     el.setAttribute("aria-checked", radioItem.checked ? "true" : "false");
     el.setAttribute("tabindex", "-1");
     if (radioItem.id) el.id = radioItem.id;
     if (radioItem.disabled) el.setAttribute("aria-disabled", "true");
-    el.addEventListener("mouseenter", () => {
+    if (radioItem.loading) {
+      el.classList.add(CLASS_ITEM_LOADING);
+      el.setAttribute("aria-busy", "true");
+      const opts = getSpinnerOptions?.(radioItem) ?? {};
+      const leadingSlot = el.querySelector(`.${CLASS_ITEM_LEADING}`) as HTMLElement | null;
+      if (leadingSlot) {
+        appendLoadingSpinner(leadingSlot, opts);
+      } else {
+        const wrap = document.createElement("span");
+        wrap.className = CLASS_ITEM_LEADING;
+        appendLoadingSpinner(wrap, opts);
+        el.insertBefore(wrap, el.querySelector(`.${CLASS_LABEL}`) ?? el.firstChild);
+      }
+    }
+    const fireRadioHover = (e: MouseEvent | FocusEvent): void => {
       onHoverFocus?.(el);
       onEnterParentItem?.(el);
+      onItemHoverCallback?.(radioItem, e);
       if (radioItem.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
-    });
+    };
+    el.addEventListener("mouseenter", fireRadioHover);
+    el.addEventListener("focus", fireRadioHover);
     el.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (radioItem.disabled || !radioItem.onSelect) return;
+      if (radioItem.disabled || radioItem.loading || !radioItem.onSelect) return;
       const event: MenuRadioSelectEvent = {
         item: radioItem,
         value: radioItem.value,
@@ -351,7 +438,7 @@ function createItemNode(
       radioItem.onSelect(event);
       refreshContent?.();
       const shouldClose = radioItem.closeOnAction !== false;
-      if (shouldClose) close();
+      if (shouldClose) close(radioItem);
     });
     return el;
   }
@@ -360,6 +447,7 @@ function createItemNode(
     const sub = item as MenuItemSubmenu;
     const el = document.createElement("div");
     (el as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu = sub;
+    (el as unknown as { _cmItem?: MenuItem })._cmItem = sub;
     el.setAttribute("role", "menuitem");
     el.setAttribute("aria-haspopup", "menu");
     el.setAttribute("aria-expanded", "false");
@@ -385,16 +473,19 @@ function createItemNode(
     }
     if (arrowConfig) appendSubmenuArrow(el, arrowConfig);
 
-    el.addEventListener("mouseenter", () => {
+    const fireSubmenuHover = (e: MouseEvent | FocusEvent): void => {
       onHoverFocus?.(el);
       onEnterParentItem?.(el);
+      onItemHoverCallback?.(sub, e);
       if (sub.disabled) {
         clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
         return;
       }
       if (scheduleSubmenuOpen) scheduleSubmenuOpen(sub, el);
       else triggerSubmenu(sub, el);
-    });
+    };
+    el.addEventListener("mouseenter", fireSubmenuHover);
+    el.addEventListener("focus", fireSubmenuHover);
     el.addEventListener("mouseleave", () => {
       if (scheduleSubmenuClose) scheduleSubmenuClose(el);
     });
@@ -402,6 +493,75 @@ function createItemNode(
       e.preventDefault();
       if (sub.disabled) return;
       triggerSubmenu(sub, el);
+    });
+    return el;
+  }
+
+  if (item.type === "link") {
+    const linkItem = item as MenuItemLink;
+    const el = document.createElement("a");
+    el.className = CLASS_ITEM;
+    if (linkItem.className) el.classList.add(linkItem.className);
+    const variantClassLink = getVariantClass(linkItem.variant);
+    if (variantClassLink) el.classList.add(variantClassLink);
+    if (!linkItem.disabled) {
+      el.href = linkItem.href;
+      if (linkItem.target) el.target = linkItem.target;
+      if (linkItem.rel) el.rel = linkItem.rel;
+    }
+    const leadingSlot = document.createElement("span");
+    leadingSlot.className = CLASS_ITEM_LEADING;
+    leadingSlot.setAttribute("aria-hidden", "true");
+    el.appendChild(leadingSlot);
+    const label = document.createElement("span");
+    label.className = CLASS_LABEL;
+    label.textContent = linkItem.label;
+    el.appendChild(label);
+    if (linkItem.icon) appendIcon(el, linkItem.icon);
+    if (linkItem.shortcut) {
+      const sc = document.createElement("span");
+      sc.setAttribute("aria-hidden", "true");
+      sc.className = CLASS_SHORTCUT;
+      sc.textContent = linkItem.shortcut;
+      el.appendChild(sc);
+    }
+    (el as unknown as { _cmItem?: MenuItem })._cmItem = linkItem;
+    el.setAttribute("role", "menuitem");
+    el.setAttribute("tabindex", "-1");
+    if (linkItem.id) el.id = linkItem.id;
+    if (linkItem.disabled) el.setAttribute("aria-disabled", "true");
+    if (linkItem.loading) {
+      el.classList.add(CLASS_ITEM_LOADING);
+      el.setAttribute("aria-busy", "true");
+      appendLoadingSpinner(leadingSlot, getSpinnerOptions?.(linkItem) ?? {});
+    }
+    const fireLinkHover = (e: MouseEvent | FocusEvent): void => {
+      onHoverFocus?.(el);
+      onEnterParentItem?.(el);
+      onItemHoverCallback?.(linkItem, e);
+      if (linkItem.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
+    };
+    el.addEventListener("mouseenter", fireLinkHover);
+    el.addEventListener("focus", fireLinkHover);
+    el.addEventListener("click", (e) => {
+      if (linkItem.disabled || linkItem.loading) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      const isModifier = e.ctrlKey || e.metaKey;
+      if (isModifier) {
+        close(linkItem);
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (linkItem.target === "_blank") {
+        window.open(linkItem.href, "_blank", linkItem.rel ? `rel=${linkItem.rel}` : undefined);
+      } else {
+        window.location.href = linkItem.href;
+      }
+      close(linkItem);
     });
     return el;
   }
@@ -416,6 +576,10 @@ function createItemNode(
     if (action.className) el.classList.add(action.className);
     const variantClassAction = getVariantClass(action.variant);
     if (variantClassAction) el.classList.add(variantClassAction);
+    const leadingSlot = document.createElement("span");
+    leadingSlot.className = CLASS_ITEM_LEADING;
+    leadingSlot.setAttribute("aria-hidden", "true");
+    el.appendChild(leadingSlot);
     const label = document.createElement("span");
     label.className = CLASS_LABEL;
     label.textContent = action.label;
@@ -429,20 +593,37 @@ function createItemNode(
       el.appendChild(sc);
     }
   }
+  (el as unknown as { _cmItem?: MenuItem })._cmItem = action;
   el.setAttribute("role", "menuitem");
   el.setAttribute("tabindex", "-1");
   if (action.id) el.id = action.id;
   if (action.disabled) el.setAttribute("aria-disabled", "true");
-
-  el.addEventListener("mouseenter", () => {
+  if (action.loading) {
+    el.classList.add(CLASS_ITEM_LOADING);
+    el.setAttribute("aria-busy", "true");
+    const opts = getSpinnerOptions?.(action) ?? {};
+    const leadingSlot = el.querySelector(`.${CLASS_ITEM_LEADING}`) as HTMLElement | null;
+    if (leadingSlot) {
+      appendLoadingSpinner(leadingSlot, opts);
+    } else {
+      const wrap = document.createElement("span");
+      wrap.className = CLASS_ITEM_LEADING;
+      appendLoadingSpinner(wrap, opts);
+      el.insertBefore(wrap, el.querySelector(`.${CLASS_LABEL}`) ?? el.firstChild);
+    }
+  }
+  const fireActionHover = (e: MouseEvent | FocusEvent): void => {
     onHoverFocus?.(el);
     onEnterParentItem?.(el);
+    onItemHoverCallback?.(action, e);
     if (action.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
-  });
+  };
+  el.addEventListener("mouseenter", fireActionHover);
+  el.addEventListener("focus", fireActionHover);
   el.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (action.disabled || !action.onClick) return;
+    if (action.disabled || action.loading || !action.onClick) return;
     const event: MenuClickEvent = {
       item: action,
       nativeEvent: e,
@@ -450,7 +631,7 @@ function createItemNode(
     };
     action.onClick(event);
     const shouldClose = action.closeOnAction !== false;
-    if (shouldClose) close();
+    if (shouldClose) close(action);
   });
   return el;
 }
@@ -521,6 +702,34 @@ function getVariantClass(variant: MenuItemVariant | undefined): string | null {
   }
 }
 
+function normalizeKeyForShortcut(key: string): string {
+  if (key.length === 1) return key.toLowerCase();
+  return key;
+}
+
+function shortcutMatchesEvent(shortcut: string, e: KeyboardEvent): boolean {
+  const parts = shortcut.split("+").map((p) => p.trim());
+  if (parts.length === 0) return false;
+  const shortcutKey = normalizeKeyForShortcut(parts[parts.length - 1] ?? "");
+  const eventKey = normalizeKeyForShortcut(e.key);
+  if (shortcutKey !== eventKey) return false;
+  const mods = parts.slice(0, -1).map((p) => p.toLowerCase());
+  const hasCtrl = mods.includes("ctrl");
+  const hasCmd = mods.includes("cmd");
+  const hasAlt = mods.includes("alt");
+  const hasShift = mods.includes("shift");
+  if (hasCtrl || hasCmd) {
+    if (!(e.ctrlKey || e.metaKey)) return false;
+  } else if (e.ctrlKey || e.metaKey) return false;
+  if (hasAlt) {
+    if (!e.altKey) return false;
+  } else if (e.altKey) return false;
+  if (hasShift) {
+    if (!e.shiftKey) return false;
+  } else if (e.shiftKey) return false;
+  return true;
+}
+
 function applyThemeToElement(el: HTMLElement, theme: ContextMenuConfig["theme"]): void {
   const prevClass = el.getAttribute(THEME_CLASS_DATA_ATTR);
   if (prevClass) {
@@ -576,6 +785,11 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   let longPressX = 0;
   let longPressY = 0;
 
+  let lastAnchor: { x: number; y: number } | null = null;
+  let lastSelectedItem: MenuItem | undefined = undefined;
+  let openPromiseResolve: ((value: MenuItem | undefined) => void) | null = null;
+  let closePromiseResolve: (() => void) | null = null;
+
   function cancelLeaveAnimation(): void {
     if (leaveTimeout) {
       clearTimeout(leaveTimeout);
@@ -588,70 +802,101 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     root.classList.remove(ROOT_LEAVE_CLASS);
   }
 
-  function close(): void {
-    if (!isOpen) return;
-    isOpen = false;
-    if (outsideClickHandler) {
-      document.removeEventListener("mousedown", outsideClickHandler, true);
-      outsideClickHandler = null;
-    }
-    if (resizeHandler) {
-      window.removeEventListener("resize", resizeHandler);
-      resizeHandler = null;
-    }
-    cancelLeaveAnimation();
-    if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
-    submenuHoverTimer = null;
+  function onFullyClosed(): void {
+    openPromiseResolve?.(lastSelectedItem);
+    openPromiseResolve = null;
+    closePromiseResolve?.();
+    closePromiseResolve = null;
+  }
 
-    function doRootClose(): void {
-      const anim = currentConfig.animation;
-      const rawLeave = anim?.leave ?? 80;
-      const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
-
-      if (leaveMs > 0 && !anim?.disabled) {
-        root.classList.remove(ROOT_OPEN_CLASS);
-        root.classList.add(ROOT_LEAVE_CLASS);
-        const onEnd = (): void => {
-          if (leaveTimeout) clearTimeout(leaveTimeout);
-          leaveTimeout = null;
-          if (leaveTransitionHandler) {
-            root.removeEventListener("transitionend", leaveTransitionHandler);
-            leaveTransitionHandler = null;
-          }
-          root.classList.remove(ROOT_LEAVE_CLASS);
-          root.style.display = "none";
-          wrapper.remove();
-          currentConfig.onClose?.();
-          if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
-        };
-        leaveTransitionHandler = onEnd;
-        root.addEventListener("transitionend", onEnd, { once: true });
-        leaveTimeout = setTimeout(onEnd, leaveMs + 50);
-      } else {
-        root.style.display = "none";
-        wrapper.remove();
-        currentConfig.onClose?.();
-        if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
-      }
-    }
-
-    if (openSubmenus.length > 0) {
-      const toClose = openSubmenus.slice();
-      openSubmenus.length = 0;
-      let idx = toClose.length - 1;
-      const closeNext = (): void => {
-        if (idx < 0) {
-          doRootClose();
+  function realClose(): Promise<void> {
+    return new Promise((resolve) => {
+      (async () => {
+        const allow = await Promise.resolve(currentConfig.onBeforeClose?.());
+        if (allow === false) {
+          resolve();
           return;
         }
-        const { panel, trigger } = toClose[idx];
-        idx--;
-        closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: closeNext });
-      };
-      closeNext();
-      return;
-    }
-    doRootClose();
+        if (!isOpen) {
+          resolve();
+          return;
+        }
+        closePromiseResolve = resolve;
+        isOpen = false;
+        if (outsideClickHandler) {
+          document.removeEventListener("mousedown", outsideClickHandler, true);
+          outsideClickHandler = null;
+        }
+        if (resizeHandler) {
+          window.removeEventListener("resize", resizeHandler);
+          resizeHandler = null;
+        }
+        cancelLeaveAnimation();
+        if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
+        submenuHoverTimer = null;
+
+        function doRootClose(): void {
+          const anim = currentConfig.animation;
+          const rawLeave = anim?.leave ?? 80;
+          const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
+
+          if (leaveMs > 0 && !anim?.disabled) {
+            root.classList.remove(ROOT_OPEN_CLASS);
+            root.classList.add(ROOT_LEAVE_CLASS);
+            const onEnd = (): void => {
+              if (leaveTimeout) clearTimeout(leaveTimeout);
+              leaveTimeout = null;
+              if (leaveTransitionHandler) {
+                root.removeEventListener("transitionend", leaveTransitionHandler);
+                leaveTransitionHandler = null;
+              }
+              root.classList.remove(ROOT_LEAVE_CLASS);
+              root.style.display = "none";
+              wrapper.remove();
+              onFullyClosed();
+              currentConfig.onClose?.();
+              if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
+            };
+            leaveTransitionHandler = onEnd;
+            root.addEventListener("transitionend", onEnd, { once: true });
+            leaveTimeout = setTimeout(onEnd, leaveMs + 50);
+          } else {
+            root.style.display = "none";
+            wrapper.remove();
+            onFullyClosed();
+            currentConfig.onClose?.();
+            if (lastFocusTarget && typeof lastFocusTarget.focus === "function") lastFocusTarget.focus();
+          }
+        }
+
+        if (openSubmenus.length > 0) {
+          const toClose = openSubmenus.slice();
+          openSubmenus.length = 0;
+          let idx = toClose.length - 1;
+          const closeNext = (): void => {
+            if (idx < 0) {
+              doRootClose();
+              return;
+            }
+            const { panel, trigger } = toClose[idx];
+            idx--;
+            closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: closeNext });
+          };
+          closeNext();
+          return;
+        }
+        doRootClose();
+      })();
+    });
+  }
+
+  function closeWithSelection(selectedItem?: MenuItem): void {
+    if (selectedItem !== undefined) lastSelectedItem = selectedItem;
+    void realClose();
+  }
+
+  function closePublic(): Promise<void> {
+    return realClose();
   }
 
   function closeSubmenuWithAnimation(
@@ -721,7 +966,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     applyAnimationConfig(panel, currentConfig);
 
     sub.children.forEach((child) => {
-      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent);
+      const node = createItemNode(child, closeWithSelection, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), onEnterMenuItem, submenuArrowConfig, refreshContent, (it, ev) => currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), getSpinnerOptions);
       if (node) panel.appendChild(node);
     });
 
@@ -731,16 +976,25 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
     const isRtl = getComputedStyle(triggerEl).direction === "rtl";
+    const placement = sub.submenuPlacement ?? currentConfig.submenuPlacement ?? "auto";
     panel.style.display = "";
     panel.getClientRects();
     const rect = panel.getBoundingClientRect();
     let left: number;
-    if (isRtl) {
+    if (placement === "left") {
       left = triggerRect.left - rect.width - 2;
       if (left < padding) left = triggerRect.right + 2;
-    } else {
+    } else if (placement === "right") {
       left = triggerRect.right + 2;
       if (left + rect.width > vw - padding) left = triggerRect.left - rect.width - 2;
+    } else {
+      if (isRtl) {
+        left = triggerRect.left - rect.width - 2;
+        if (left < padding) left = triggerRect.right + 2;
+      } else {
+        left = triggerRect.right + 2;
+        if (left + rect.width > vw - padding) left = triggerRect.left - rect.width - 2;
+      }
     }
     let top = triggerRect.top;
     if (top + rect.height > vh - padding) top = vh - rect.height - padding;
@@ -831,67 +1085,95 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     }
   }
 
+  function getSpinnerOptions(it: MenuItem): SpinnerConfig {
+    const base = currentConfig.spinner ?? {};
+    const hasOverrides =
+      it &&
+      typeof it === "object" &&
+      ("loadingIcon" in it || "loadingSize" in it || "loadingSpeed" in it);
+    if (!hasOverrides) return base;
+    return {
+      ...base,
+      ...("loadingIcon" in it && it.loadingIcon !== undefined && { icon: it.loadingIcon }),
+      ...("loadingSize" in it && it.loadingSize !== undefined && { size: it.loadingSize }),
+      ...("loadingSpeed" in it && it.loadingSpeed !== undefined && { speed: it.loadingSpeed }),
+    };
+  }
+
   function buildRootContent(): void {
     root.innerHTML = "";
     menu.forEach((item) => {
-      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterMenuItem, submenuArrowConfig, refreshContent);
+      const node = createItemNode(item, closeWithSelection, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterMenuItem, submenuArrowConfig, refreshContent, (it, ev) => currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), getSpinnerOptions);
       if (node) root.appendChild(node);
     });
   }
 
-  function open(xOrEvent?: number | MouseEvent, y?: number): void {
-    if (typeof currentConfig.menu === "function") {
-      menu = currentConfig.menu().map(normalizeItem);
-    }
-    const openEvent = typeof xOrEvent === "object" && xOrEvent !== null ? xOrEvent : undefined;
-    let x: number;
-    let yCoord: number;
-    if (openEvent) {
-      x = openEvent.clientX;
-      yCoord = openEvent.clientY;
-    } else {
-      const noCoords = xOrEvent === undefined && y === undefined;
-      if (noCoords && currentConfig.getAnchor) {
-        const anchor = currentConfig.getAnchor();
-        const coords = getCoordsFromAnchor(anchor);
-        x = coords.x;
-        yCoord = coords.y;
-      } else {
-        x = (xOrEvent as number) ?? 0;
-        yCoord = y ?? 0;
-      }
-    }
-    cancelLeaveAnimation();
-    if (isOpen) close();
-    lastFocusTarget = document.activeElement as HTMLElement | null;
-    isOpen = true;
-    buildRootContent();
-    if (!wrapper.parentElement) portal.appendChild(wrapper);
+  function open(xOrEvent?: number | MouseEvent, y?: number): Promise<MenuItem | undefined> {
+    return new Promise((resolve) => {
+      openPromiseResolve = resolve;
+      (async () => {
+        if (typeof currentConfig.menu === "function") {
+          menu = currentConfig.menu().map(normalizeItem);
+        }
+        const openEvent = typeof xOrEvent === "object" && xOrEvent !== null ? xOrEvent : undefined;
+        let x: number;
+        let yCoord: number;
+        if (openEvent) {
+          x = openEvent.clientX;
+          yCoord = openEvent.clientY;
+        } else {
+          const noCoords = xOrEvent === undefined && y === undefined;
+          if (noCoords && currentConfig.getAnchor) {
+            const anchor = currentConfig.getAnchor();
+            const coords = getCoordsFromAnchor(anchor);
+            x = coords.x;
+            yCoord = coords.y;
+          } else {
+            x = (xOrEvent as number) ?? 0;
+            yCoord = y ?? 0;
+          }
+        }
+        const allow = await Promise.resolve(currentConfig.onBeforeOpen?.(openEvent));
+        if (allow === false) {
+          openPromiseResolve?.(undefined);
+          openPromiseResolve = null;
+          return;
+        }
+        cancelLeaveAnimation();
+        if (isOpen) await realClose();
+        lastAnchor = { x, y: yCoord };
+        lastSelectedItem = undefined;
+        lastFocusTarget = document.activeElement as HTMLElement | null;
+        isOpen = true;
+        buildRootContent();
+        if (!wrapper.parentElement) portal.appendChild(wrapper);
     outsideClickHandler = (e: MouseEvent): void => {
-      if (!wrapper.contains(e.target as Node)) close();
+      if (!wrapper.contains(e.target as Node)) void closePublic();
     };
     document.addEventListener("mousedown", outsideClickHandler, true);
     if (currentConfig.closeOnResize) {
-      resizeHandler = (): void => close();
-      window.addEventListener("resize", resizeHandler);
-    }
-    positionMenu(root, x, yCoord, currentConfig);
-    root.style.display = "";
+      resizeHandler = (): void => void closePublic();
+          window.addEventListener("resize", resizeHandler);
+        }
+        positionMenu(root, x, yCoord, currentConfig);
+        root.style.display = "";
 
-    const anim = currentConfig.animation;
-    if (anim?.disabled) {
-      root.classList.add(ROOT_OPEN_CLASS);
-      currentConfig.onOpen?.(openEvent);
-      const items = getFocusableItems(root);
-      if (items.length) setRovingTabindex(items, 0);
-      return;
-    }
-    root.getClientRects();
-    requestAnimationFrame(() => {
-      root.classList.add(ROOT_OPEN_CLASS);
-      currentConfig.onOpen?.(openEvent);
-      const items = getFocusableItems(root);
-      if (items.length) setRovingTabindex(items, 0);
+        const anim = currentConfig.animation;
+        if (anim?.disabled) {
+          root.classList.add(ROOT_OPEN_CLASS);
+          currentConfig.onOpen?.(openEvent);
+          const items = getFocusableItems(root);
+          if (items.length) setRovingTabindex(items, 0);
+          return;
+        }
+        root.getClientRects();
+        requestAnimationFrame(() => {
+          root.classList.add(ROOT_OPEN_CLASS);
+          currentConfig.onOpen?.(openEvent);
+          const items = getFocusableItems(root);
+          if (items.length) setRovingTabindex(items, 0);
+        });
+      })();
     });
   }
 
@@ -938,7 +1220,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
           const { panel, trigger } = openSubmenus[openSubmenus.length - 1];
           closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true, onDone: () => trigger.focus() });
         } else {
-          close();
+          void closePublic();
         }
         break;
       }
@@ -956,7 +1238,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
           const { panel, trigger } = openSubmenus[openSubmenus.length - 1];
           closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true, onDone: () => trigger.focus() });
         } else {
-          close();
+          void closePublic();
         }
         break;
       }
@@ -970,8 +1252,31 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
         setRovingTabindex(items, items.length - 1);
         break;
       }
-      default:
+      default: {
+        const itemWithShortcut = items.find((el) => {
+          const sub = (el as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu;
+          const it = sub ?? (el as unknown as { _cmItem?: MenuItem })._cmItem;
+          if (!it || !("shortcut" in it) || !it.shortcut) return false;
+          return shortcutMatchesEvent(it.shortcut, e);
+        });
+        if (itemWithShortcut) {
+          e.preventDefault();
+          const sub = (itemWithShortcut as unknown as { _cmSubmenu?: MenuItemSubmenu })._cmSubmenu;
+          if (sub) {
+            openSubmenuPanel(sub, itemWithShortcut);
+            requestAnimationFrame(() => {
+              const last = openSubmenus[openSubmenus.length - 1];
+              if (last) {
+                const subItems = getFocusableItems(last.panel);
+                if (subItems.length) setRovingTabindex(subItems, 0);
+              }
+            });
+          } else {
+            itemWithShortcut.click();
+          }
+        }
         break;
+      }
     }
   }
 
@@ -984,7 +1289,8 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     }
   }
 
-  function unbind(): void {
+  function unbind(el?: HTMLElement): void {
+    if (el != null && boundElement !== el) return;
     if (!boundElement) return;
     clearLongPressTimer();
     if (boundContextmenu) boundElement.removeEventListener("contextmenu", boundContextmenu);
@@ -1040,6 +1346,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
   function setMenu(newMenu: MenuItem[]): void {
     menu = newMenu.map(normalizeItem);
+    if (isOpen) buildRootContent();
   }
 
   function updateMenu(updater: (current: MenuItem[]) => MenuItem[]): void {
@@ -1131,17 +1438,19 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
   const instance: ContextMenuInstance = {
     open,
-    close,
+    close: closePublic,
     toggle(x?: number, y?: number) {
-      if (isOpen) close();
-      else open(x ?? 0, y ?? 0);
+      if (isOpen) void closePublic();
+      else void open(x ?? 0, y ?? 0);
     },
     openAtElement,
     isOpen: () => isOpen,
+    getAnchor: () => lastAnchor,
     getMenu: () => deepCloneMenu(menu),
     getRootElement: () => wrapper,
     updateMenu,
     bind,
+    unbind,
     destroy,
     setMenu,
     setTheme,

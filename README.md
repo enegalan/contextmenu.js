@@ -33,7 +33,7 @@ menu.bind(element);
 element.addEventListener("contextmenu", (e) => { e.preventDefault(); menu.open(e); });
 
 // Programmatic
-menu.open(x, y);
+const selected = await menu.open(x, y);
 menu.close();
 menu.openAtElement(button, { placement: "bottom-start" });
 ```
@@ -46,13 +46,15 @@ What you get from `createContextMenu(config)`:
 
 | Method | Description |
 |--------|-------------|
-| `open(x?, y?)` / `open(event)` | Show menu at coordinates or at the event position. |
-| `close()` | Close the menu. |
+| `open(x?, y?)` / `open(event)` | Show menu at coordinates or at the event position. Returns a `Promise<MenuItem \| undefined>` that resolves with the selected item when the menu closes, or `undefined` if closed without selection. |
+| `close()` | Close the menu. Returns a `Promise<void>` that resolves when the close animation finishes. |
 | `toggle(x?, y?)` | Open if closed, close if open. |
 | `openAtElement(el, options?)` | Show menu next to an element. `options.placement`: `"bottom-start"`, `"top-end"`, `"auto"`, etc. `options.offset`: `{ x, y }` in px. |
 | `isOpen()` | `true` if the menu is visible. |
+| `getAnchor()` | Returns `{ x, y }` of the last open anchor, or `null`. |
 | `getMenu()` | Copy of the current menu (array of items). |
 | `getRootElement()` | The wrapper DOM element (for tests or styling). |
+| `unbind(element?)` | Remove bind from the given element, or from the currently bound element if no argument. |
 | `setMenu(menu)` | Replace the menu. `menu` is an array of menu items. |
 | `updateMenu(updater)` | Change the menu from current state. `updater` is a function: `(currentItems) => newItems`. See example below. |
 | `setTheme(theme)` | Change theme at runtime. `theme`: `{ class?: string, tokens?: { bg: "...", fg: "..." } }` or `undefined` to clear. |
@@ -92,14 +94,19 @@ What you pass to `createContextMenu({ ... })`:
 |--------|------|-------------|
 | `menu` | `MenuItem[]` or `() => MenuItem[]` | The menu tree. If a function, it runs each time the menu opens (dynamic menu). |
 | `submenuArrow` | `boolean` or object | `true` = default arrow. Object: `{ icon?, size?, className?, opacity? }`. |
+| `spinner` | `{ icon?, size?, speed? }` | Default loading spinner. `icon`: SVG string or HTMLElement. `size`: px or CSS length. `speed`: ms per full rotation (default 600). Overridable per item via `loadingIcon`, `loadingSize`, `loadingSpeed`. |
 | `theme` | `{ class?, tokens? }` | `class`: CSS class on menu. `tokens`: e.g. `{ bg: "#111", fg: "#eee" }` (sets `--cm-bg`, `--cm-fg`). |
 | `animation` | `{ enter?, leave?, disabled? }` | `enter` / `leave`: ms or `{ duration, easing }`. `disabled: true` = no animation. |
 | `position` | `{ offset?, padding?, flip?, shift? }` | `offset`: `{ x, y }`. `padding`: viewport padding (px). `flip` / `shift`: keep menu in view. |
 | `portal` | `HTMLElement` or function | Where to mount the menu. Default: `document.body`. |
 | `getAnchor` | `() => { x, y }` or `DOMRect` | Used when `open()` is called with no arguments. |
+| `submenuPlacement` | `"right"` \| `"left"` \| `"auto"` | Where to open submenus. `"auto"` uses RTL and viewport space (default). |
 | `bind` | `HTMLElement` or `{ element, options? }` | Same as calling `menu.bind(element, options)` after create. |
 | `onOpen` | `(event?: MouseEvent) => void` | Called when menu opens. `event` is set when opened by right-click or bind. |
 | `onClose` | `() => void` | Called when menu closes (after leave animation). |
+| `onBeforeOpen` | `(event?: MouseEvent) => boolean \| void \| Promise<...>` | Called before opening. Return `false` (or a Promise resolving to `false`) to cancel. |
+| `onBeforeClose` | `() => boolean \| void \| Promise<...>` | Called before closing. Return `false` (or a Promise resolving to `false`) to cancel. |
+| `onItemHover` | `(payload: { item, nativeEvent }) => void` | Called when the user hovers or focuses an interactive item. |
 | `closeOnResize` | `boolean` | If `true`, menu closes on window resize. |
 
 ---
@@ -110,13 +117,20 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 **Action** — clickable row
 
-- `label` (string), `icon?`, `shortcut?`, `disabled?`, `variant?`, `onClick?`, `closeOnAction?`, `render?`
+- `label` (string), `icon?`, `shortcut?`, `disabled?`, `loading?`, `variant?`, `onClick?`, `closeOnAction?`, `render?`
 - `onClick` receives `{ item, nativeEvent, close }`. By default the menu closes on click; set `closeOnAction: false` to keep it open.
+- `loading`: when `true`, shows a spinner and blocks interaction (use `setMenu` / `updateMenu` to clear). Optional: `loadingIcon` (SVG or HTMLElement), `loadingSize` (px or CSS length), `loadingSpeed` (ms per rotation) to override config.
 - `variant`: `"default"` | `"danger"` | `"info"` | `"success"` | `"warning"` | `"muted"` (adds class e.g. `cm-item--danger`).
+
+**Link** — navigation item
+
+- `type: "link"`, `label`, `href`, optional `icon?`, `shortcut?`, `target?` (e.g. `"_blank"`), `rel?` (e.g. `"noopener"`), `disabled?`, `loading?`, `variant?`, `className?`
+- Renders as `<a>`. Ctrl/Cmd+click opens in new tab without preventing default.
 
 **Submenu** — opens a nested menu
 
-- `type: "submenu"`, `label`, `children` (array of items), `icon?`, `shortcut?`, `disabled?`, `variant?`
+- `type: "submenu"`, `label`, `children` (array of items), `icon?`, `shortcut?`, `disabled?`, `variant?`, `submenuPlacement?`
+- `submenuPlacement`: `"right"` | `"left"` | `"auto"` overrides the config for this submenu.
 - Opens on hover or Arrow Right / Enter.
 
 **Separator**
@@ -125,12 +139,12 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 **Checkbox**
 
-- `type: "checkbox"`, `label`, `checked?`, `onChange?`, plus `leadingIcon?`, `shortcut?`, `icon?` / `uncheckedIcon?`, `disabled?`, `closeOnAction?`, `variant?`, `render?`
+- `type: "checkbox"`, `label`, `checked?`, `onChange?`, plus `leadingIcon?`, `shortcut?`, `icon?` / `uncheckedIcon?`, `disabled?`, `loading?`, `closeOnAction?`, `variant?`, `render?`
 - `onChange` receives `{ item, checked, nativeEvent, close }`. State is not stored; use a function menu or `setMenu` / `updateMenu` to persist.
 
 **Radio**
 
-- `type: "radio"`, `label`, `name`, `value`, `checked?`, `onSelect?`, plus same optional props as checkbox.
+- `type: "radio"`, `label`, `name`, `value`, `checked?`, `onSelect?`, plus same optional props as checkbox (including `loading?`).
 - One item per group (same `name`) should have `checked: true`. Update menu to reflect selection.
 
 **Label** — non-clickable header
@@ -162,14 +176,16 @@ createContextMenu({
 });
 ```
 
-**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
+**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
+
+**Animation variables** (also set by config `animation` at runtime): `--cm-enter-duration` (default 120ms), `--cm-leave-duration` (default 80ms), `--cm-enter-easing` (default ease-out), `--cm-leave-easing` (default ease-in). Override in CSS or via the `animation` option.
 
 ---
 
 ## Accessibility
 
 - **ARIA:** Root `role="menu"`, items `menuitem` / `menuitemcheckbox` / `menuitemradio`, submenus `aria-haspopup` and `aria-expanded`, separators `separator`, labels `presentation`.
-- **Keyboard:** Arrows (move, open/close submenu), Enter/Space (activate), Escape (close), Home/End (first/last). Focus returns to trigger on close.
+- **Keyboard:** Arrows (move, open/close submenu), Enter/Space (activate), Escape (close), Home/End (first/last). **Shortcuts:** With the menu open, pressing an item’s shortcut (e.g. `Ctrl+C` or `Cmd+C`) runs that item; Ctrl and Cmd are treated as equivalent (macOS and Windows/Linux). Focus returns to trigger on close.
 - **Focus:** Roving tabindex on the menu.
 
 ---

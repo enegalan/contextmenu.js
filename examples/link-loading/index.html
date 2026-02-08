@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link & loading – contextmenu.js</title>
+  <link rel="stylesheet" href="../../src/style.css">
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 560px; }
+    h1 { margin-top: 0; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: #f9f9f9; border-radius: 8px; }
+    .controls label { font-weight: 500; font-size: 0.9rem; }
+    .controls select { padding: 0.35rem 0.6rem; font-size: 14px; border-radius: 6px; border: 1px solid #ccc; }
+    .target { padding: 2rem; background: #f0f0f0; border-radius: 8px; margin-bottom: 1rem; }
+    .target p { margin: 0; color: #555; }
+    .note { font-size: 0.9rem; color: #666; margin-top: 1.5rem; }
+    .note code { background: #eee; padding: 0.1em 0.4em; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Link & loading</h1>
+  <p>Right-click the area below to open a menu with <strong>link</strong> items and an action that shows <strong>loading</strong> state.</p>
+  <div class="controls">
+    <span>
+      <label for="spinner-type">Loader style:</label>
+      <select id="spinner-type">
+        <option value="default">Default (circle)</option>
+        <option value="custom" selected>Custom SVG</option>
+      </select>
+    </span>
+    <span>
+      <label for="spinner-size">Size:</label>
+      <select id="spinner-size">
+        <option value="12">12px</option>
+        <option value="14">14px</option>
+        <option value="16" selected>16px</option>
+        <option value="18">18px</option>
+        <option value="20">20px</option>
+      </select>
+    </span>
+    <span>
+      <label for="spinner-speed">Speed (ms):</label>
+      <select id="spinner-speed">
+        <option value="400">400</option>
+        <option value="600">600</option>
+        <option value="800" selected>800</option>
+        <option value="1200">1200</option>
+      </select>
+    </span>
+  </div>
+  <div class="target" id="target">
+    <p>Right-click or long-press here.</p>
+  </div>
+  <p class="note">
+    <strong>Links:</strong> Use <code>type: "link"</code> with <code>href</code>, optional <code>target</code> and <code>rel</code>. Ctrl/Cmd+click opens in a new tab.<br>
+    <strong>Loading:</strong> Set <code>loading: true</code> on an item, then use <code>updateMenu</code> to clear it. Customize via <code>config.spinner</code> or per item: <code>loadingIcon</code>, <code>loadingSize</code>, <code>loadingSpeed</code>.
+  </p>
+  <script type="module">
+    import { createContextMenu } from "../../src/index.ts";
+
+    let saving = false;
+    let menu = null;
+
+    const customSpinnerSvg = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="32 20" stroke-linecap="round"/></svg>';
+
+    const target = document.getElementById("target");
+    const spinnerTypeSelect = document.getElementById("spinner-type");
+    const spinnerSizeSelect = document.getElementById("spinner-size");
+    const spinnerSpeedSelect = document.getElementById("spinner-speed");
+
+    function getSpinnerConfig() {
+      const useCustom = spinnerTypeSelect.value === "custom";
+      const size = Number(spinnerSizeSelect.value);
+      const speed = Number(spinnerSpeedSelect.value);
+      return {
+        spinner: {
+          ...(useCustom && { icon: customSpinnerSvg }),
+          size,
+          speed,
+        },
+      };
+    }
+
+    function createMenu() {
+      if (menu) menu.destroy();
+      const opts = getSpinnerConfig();
+      menu = createContextMenu({
+        ...opts,
+        menu: [
+          {
+            type: "link",
+            label: "Open documentation",
+            href: "https://github.com",
+            shortcut: "Ctrl+O",
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+          {
+            type: "link",
+            label: "Open in same tab",
+            href: "https://example.com",
+          },
+          { type: "separator" },
+          {
+            type: "item",
+            id: "save",
+            label: "Save (simulate async)",
+            shortcut: "Ctrl+S",
+            loading: false,
+            loadingSize: Number(spinnerSizeSelect.value),
+            loadingSpeed: Number(spinnerSpeedSelect.value),
+            onClick: ({ close }) => {
+              saving = true;
+              menu.updateMenu((items) =>
+                items.map((it) =>
+                  it.type === "item" && it.id === "save"
+                    ? { ...it, loading: true }
+                    : it
+                )
+              );
+              setTimeout(() => {
+                saving = false;
+                menu.updateMenu((items) =>
+                  items.map((it) =>
+                    it.type === "item" && it.id === "save"
+                      ? { ...it, loading: false }
+                      : it
+                  )
+                );
+                close();
+              }, 2000);
+            },
+            closeOnAction: false,
+          },
+          { type: "separator" },
+          {
+            type: "link",
+            label: "Report issue",
+            href: "https://github.com",
+            target: "_blank",
+            rel: "noopener",
+            variant: "info",
+          },
+        ],
+      });
+      menu.bind(target);
+    }
+
+    createMenu();
+    spinnerTypeSelect.addEventListener("change", createMenu);
+    spinnerSizeSelect.addEventListener("change", createMenu);
+    spinnerSpeedSelect.addEventListener("change", createMenu);
+  </script>
+</body>
+</html>
