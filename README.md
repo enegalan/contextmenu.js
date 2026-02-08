@@ -93,7 +93,7 @@ What you pass to `createContextMenu({ ... })`:
 | Option | Type | Description |
 |--------|------|-------------|
 | `menu` | `MenuItem[]` or `() => MenuItem[]` | The menu tree. If a function, it runs each time the menu opens (dynamic menu). |
-| `submenuArrow` | `boolean` or object | `true` = default arrow. Object: `{ icon?, size?, className?, opacity? }`. |
+| `submenuArrow` | `boolean` or object | `true` = default chevron SVG. Object: `{ icon?, size?, className?, opacity? }`; omit `icon` to use the CSS triangle. |
 | `spinner` | `{ icon?, size?, speed? }` | Default loading spinner. `icon`: SVG string or HTMLElement. `size`: px or CSS length. `speed`: ms per full rotation (default 600). Overridable per item via `loadingIcon`, `loadingSize`, `loadingSpeed`. |
 | `theme` | `{ class?, tokens? }` | `class`: CSS class on menu. `tokens`: e.g. `{ bg: "#111", fg: "#eee" }` (sets `--cm-bg`, `--cm-fg`). |
 | `animation` | `{ type?, enter?, leave?, disabled? }` | `type`: `"fade"` (opacity + scale) or `"slide"` (opacity + translate). `enter` / `leave`: ms or `{ duration, easing }`. `disabled: true` = no animation. |
@@ -109,6 +109,8 @@ What you pass to `createContextMenu({ ... })`:
 | `onBeforeClose` | `() => boolean \| void \| Promise<...>` | Called before closing. Return `false` (or a Promise resolving to `false`) to cancel. |
 | `onItemHover` | `(payload: { item, nativeEvent }) => void` | Called when the user hovers or focuses an interactive item. |
 | `closeOnResize` | `boolean` | If `true`, menu closes on window resize. |
+| `shortcutIcons` | `Record<string, string \| HTMLElement>` | Optional map of shortcut part names to SVG string or HTMLElement. Keys are the same names used in shortcuts (e.g. `ctrl`, `shift`, `enter`, `tab`, `cmd`, `alt`). When provided, those parts are rendered as icons instead of Unicode symbols (useful on Windows). Each icon is wrapped in a span with class `.cm-shortcut-icon` for styling. |
+| `platform` | `"mac"` \| `"win"` \| `"auto"` | Override platform so the menu adapts to that OS (e.g. shortcut display). Default `"auto"` detects. Set to `"win"` on macOS to preview Windows look. |
 
 ---
 
@@ -155,6 +157,63 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 ---
 
+## Shortcut display (symbols)
+
+The `shortcut` string is shown next to the item. Use the names below so the library can render **modifier** and **key** symbols (e.g. ⌘↵ instead of "Cmd+Enter"). Names are **case-insensitive**.
+
+**Format:** `Modifier+Modifier+Key` — use `+` to separate parts. The last segment is the key; the rest are modifiers.
+
+**Modifiers** (display depends on platform):
+
+| You write | macOS / iOS display | Windows / Linux display |
+|-----------|---------------------|--------------------------|
+| `Ctrl`    | ⌘ (shown as Cmd)    | ⌃                        |
+| `Cmd`     | ⌘                    | Win icon                 |
+| `Alt`     | ⌥                    | ⎇                        |
+| `Shift`   | ⇧                    | ⇧                        |
+| `Win` / `Windows` | ⌘ (as Cmd)   | Win icon                 |
+
+**Keys** (use these exact names to get symbols):
+
+| You write     | Display |
+|---------------|---------|
+| `Enter` / `Return` | ↵   |
+| `Tab`         | ⇥       |
+| `Backspace`   | ⌫       |
+| `Escape` / `Esc` | ⎋    |
+| `Delete`      | ⌦       |
+| `Space`       | ␣       |
+| `Left` / `Right` / `Up` / `Down` (or `ArrowLeft`, etc.) | ← → ↑ ↓ |
+| `Home` / `End` | ⇱ ⇲    |
+| `PageUp` / `PageDown` | ⇞ ⇟ |
+| `Insert` / `Ins` | ⎀     |
+
+Single letters and other keys (e.g. `C`, `F1`) are shown as-is (letters in uppercase). Examples:
+
+- `"Ctrl+C"` → ⌘C (Mac) or ⌃C (Win)
+- `"Ctrl+Shift+Enter"` → ⌘⇧↵ (Mac) or ⌃⇧↵ (Win)
+- `"Alt+Tab"` → ⌥⇥ (Mac) or ⎇⇥ (Win)
+
+**Using SVG/icons instead of symbols**
+
+To use icons for other shortcut parts (e.g. when symbols don’t render well), pass `shortcutIcons` in the config. On Windows the Win key uses a built-in SVG icon by default. Keys must match the shortcut part names (lowercase): `ctrl`, `shift`, `alt`, `cmd`, `win`, `enter`, `tab`, `escape`, etc.
+
+```js
+createContextMenu({
+  menu: [...],
+  shortcutIcons: {
+    ctrl: '<svg viewBox="0 0 24 24">...</svg>',
+    shift: '<svg viewBox="0 0 24 24">...</svg>',
+    enter: '<svg viewBox="0 0 24 24">...</svg>',
+    tab: '<svg viewBox="0 0 24 24">...</svg>',
+  },
+});
+```
+
+Each icon is wrapped in a span with class `.cm-shortcut-icon` so you can size or style them in CSS.
+
+---
+
 ## Theming
 
 Load the default CSS and override with variables:
@@ -178,7 +237,7 @@ createContextMenu({
 });
 ```
 
-**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-radius`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. **Badge:** `--cm-badge-font-size`, `--cm-badge-opacity`, `--cm-badge-padding`, `--cm-badge-border-radius`, `--cm-badge-box-shadow`, `--cm-badge-background`, `--cm-badge-border-width`, `--cm-badge-border-style`, `--cm-badge-border-color`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
+**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-radius`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-item-active-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. **Shortcut:** `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-shortcut-icon-size` (size of each shortcut icon, default `1em`). **Badge:** `--cm-badge-font-size`, `--cm-badge-opacity`, `--cm-badge-padding`, `--cm-badge-border-radius`, `--cm-badge-box-shadow`, `--cm-badge-background`, `--cm-badge-border-width`, `--cm-badge-border-style`, `--cm-badge-border-color`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
 
 **Animation variables** (also set by config `animation` at runtime): `--cm-enter-duration` (default 120ms), `--cm-leave-duration` (default 80ms), `--cm-enter-easing` (default ease-out), `--cm-leave-easing` (default ease-in). Override in CSS or via the `animation` option. Use `animation.type: "slide"` for a slide-in effect instead of fade+scale.
 
@@ -206,9 +265,9 @@ Build output is minified. Approximate sizes:
 
 | Asset | Minified
 |-------|----------|
-| `dist/index.js` (ESM) | ~23 KB
-| `dist/index.cjs` (CJS) | ~23 KB
-| `src/style.css` | ~7.5 KB
+| `dist/index.js` (ESM) | ~27 KB
+| `dist/index.cjs` (CJS) | ~28 KB
+| `src/style.css` | ~10 KB
 
 ---
 

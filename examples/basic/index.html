@@ -335,8 +335,6 @@
 
     let menu = createMenu();
 
-    const CHEVRON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z"/></svg>';
-
     function createMenu() {
       const styleKey = document.getElementById("style-select").value;
       let theme = STYLES[styleKey];
@@ -353,7 +351,7 @@
       if (arrowMode === "default") submenuArrow = true;
       else if (arrowMode === "custom") {
         const size = parseInt(document.getElementById("submenu-arrow-size").value, 10) || 14;
-        submenuArrow = { icon: CHEVRON_SVG, size, opacity: 0.8 };
+        submenuArrow = { icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>', size, opacity: 0.8 };
       }
       const animationType = document.getElementById("animation-type").value;
       return createContextMenu({

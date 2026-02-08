@@ -16,6 +16,7 @@
   --cm-disabled-opacity: 0.5;
   --cm-shortcut-font-size: 0.9em;
   --cm-shortcut-opacity: 0.7;
+  --cm-shortcut-icon-size: 1em;
   --cm-z-index: 9999;
   --cm-menu-padding: 4px 0;
   --cm-menu-min-width: 8rem;
@@ -288,10 +289,30 @@
 }
 
 .cm-shortcut {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
   flex-shrink: 0;
   margin-left: auto;
   opacity: var(--cm-shortcut-opacity);
   font-size: var(--cm-shortcut-font-size);
+}
+
+.cm-shortcut-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--cm-shortcut-icon-size);
+  height: var(--cm-shortcut-icon-size);
+}
+
+.cm-shortcut-icon svg {
+  width: calc(100% - .15rem);
+  height: calc(100% - .15rem);
+  object-fit: contain;
 }
 
 .cm-submenu-arrow {
