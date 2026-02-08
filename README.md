@@ -205,7 +205,7 @@ Only one context menu is open at a time. When a new menu is opened (from any ins
 Build output is minified. Approximate sizes:
 
 | Asset | Minified
-|-------|----------|---------|
+|-------|----------|
 | `dist/index.js` (ESM) | ~23 KB
 | `dist/index.cjs` (CJS) | ~23 KB
 | `src/style.css` | ~7.5 KB
