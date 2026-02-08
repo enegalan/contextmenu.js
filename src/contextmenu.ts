@@ -152,6 +152,7 @@ function createItemNode(
   scheduleSubmenuOpen?: (sub: MenuItemSubmenu, el: HTMLElement) => void,
   scheduleSubmenuClose?: (triggerEl: HTMLElement) => void,
   onHoverFocus?: (el: HTMLElement) => void,
+  onEnterParentItem?: (el: HTMLElement) => void,
   submenuArrowConfig?: SubmenuArrowConfig | null
 ): HTMLElement | null {
   const arrowConfig = submenuArrowConfig ?? null;
@@ -194,7 +195,11 @@ function createItemNode(
 
     el.addEventListener("mouseenter", () => {
       onHoverFocus?.(el);
-      if (sub.disabled) return;
+      onEnterParentItem?.(el);
+      if (sub.disabled) {
+        clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
+        return;
+      }
       if (scheduleSubmenuOpen) scheduleSubmenuOpen(sub, el);
       else triggerSubmenu(sub, el);
     });
@@ -237,6 +242,8 @@ function createItemNode(
 
   el.addEventListener("mouseenter", () => {
     onHoverFocus?.(el);
+    onEnterParentItem?.(el);
+    if (action.disabled) clearRovingFocus(el.closest("[role='menu']") as HTMLElement | null);
   });
   el.addEventListener("click", (e) => {
     e.preventDefault();
@@ -263,6 +270,13 @@ function setRovingTabindex(items: HTMLElement[], focusedIndex: number): void {
     node.setAttribute("tabindex", i === focusedIndex ? "0" : "-1");
   });
   if (items[focusedIndex]) items[focusedIndex].focus();
+}
+
+function clearRovingFocus(menuEl: HTMLElement | null): void {
+  if (!menuEl) return;
+  const items = getFocusableItems(menuEl);
+  items.forEach((node) => node.setAttribute("tabindex", "-1"));
+  menuEl.focus();
 }
 
 function makeHoverFocusHandler(menuEl: HTMLElement): (el: HTMLElement) => void {
@@ -300,7 +314,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   let lastFocusTarget: HTMLElement | null = null;
   let leaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let leaveTransitionHandler: (() => void) | null = null;
-  let openSubmenu: { panel: HTMLElement; trigger: HTMLElement } | null = null;
+  const openSubmenus: Array<{ panel: HTMLElement; trigger: HTMLElement }> = [];
   let submenuHoverTimer: ReturnType<typeof setTimeout> | null = null;
   let outsideClickHandler: ((e: MouseEvent) => void) | null = null;
 
@@ -359,10 +373,20 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       }
     }
 
-    if (openSubmenu) {
-      const { panel, trigger } = openSubmenu;
-      openSubmenu = null;
-      closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: doRootClose });
+    if (openSubmenus.length > 0) {
+      const toClose = openSubmenus.slice();
+      openSubmenus.length = 0;
+      let idx = toClose.length - 1;
+      const closeNext = (): void => {
+        if (idx < 0) {
+          doRootClose();
+          return;
+        }
+        const { panel, trigger } = toClose[idx];
+        idx--;
+        closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: closeNext });
+      };
+      closeNext();
       return;
     }
     doRootClose();
@@ -382,7 +406,10 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       panel.remove();
       trigger.setAttribute("aria-expanded", "false");
       trigger.classList.remove(SUBMENU_OPEN_CLASS);
-      if (clearOpenSubmenu) openSubmenu = null;
+      if (clearOpenSubmenu) {
+        const idx = openSubmenus.findIndex((e) => e.panel === panel);
+        if (idx >= 0) openSubmenus.splice(idx, 1);
+      }
       onDone?.();
     };
 
@@ -406,10 +433,20 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function openSubmenuPanel(sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
-    if (openSubmenu) {
-      const prev = openSubmenu;
-      openSubmenu = null;
-      closeSubmenuWithAnimation(prev.panel, prev.trigger, { clearOpenSubmenu: false });
+    let containIndex = -1;
+    if (root.contains(triggerEl)) {
+      containIndex = -1;
+    } else {
+      for (let i = 0; i < openSubmenus.length; i++) {
+        if (openSubmenus[i].panel.contains(triggerEl)) {
+          containIndex = i;
+          break;
+        }
+      }
+    }
+    for (let j = openSubmenus.length - 1; j > containIndex; j--) {
+      const { panel: p, trigger: t } = openSubmenus[j];
+      closeSubmenuWithAnimation(p, t, { clearOpenSubmenu: true });
     }
     const panel = document.createElement("div");
     panel.setAttribute("role", "menu");
@@ -427,7 +464,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     applyAnimationConfig(panel, config);
 
     sub.children.forEach((child) => {
-      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), submenuArrowConfig);
+      const node = createItemNode(child, close, (subItem, el) => openSubmenuPanel(subItem as MenuItemSubmenu, el), scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(panel), undefined, submenuArrowConfig);
       if (node) panel.appendChild(node);
     });
 
@@ -449,7 +486,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
 
     triggerEl.setAttribute("aria-expanded", "true");
     triggerEl.classList.add(SUBMENU_OPEN_CLASS);
-    openSubmenu = { panel, trigger: triggerEl };
+    openSubmenus.push({ panel, trigger: triggerEl });
 
     requestAnimationFrame(() => {
       panel.classList.add(ROOT_OPEN_CLASS);
@@ -457,14 +494,16 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   }
 
   function scheduleSubmenuOpen(sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
-    if (openSubmenu && openSubmenu.trigger === triggerEl) {
+    const top = openSubmenus[openSubmenus.length - 1];
+    if (top && top.trigger === triggerEl) {
       triggerEl.focus();
       return;
     }
     if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
     submenuHoverTimer = setTimeout(() => {
       submenuHoverTimer = null;
-      if (openSubmenu && openSubmenu.trigger === triggerEl) return;
+      const currentTop = openSubmenus[openSubmenus.length - 1];
+      if (currentTop && currentTop.trigger === triggerEl) return;
       openSubmenuPanel(sub, triggerEl);
     }, SUBMENU_HOVER_DELAY_MS);
   }
@@ -473,10 +512,11 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
     submenuHoverTimer = setTimeout(() => {
       submenuHoverTimer = null;
-      if (openSubmenu && openSubmenu.trigger === triggerEl) {
-        const { panel, trigger } = openSubmenu;
-        openSubmenu = null;
-        closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false });
+      const idx = openSubmenus.findIndex((e) => e.trigger === triggerEl);
+      if (idx < 0) return;
+      for (let j = openSubmenus.length - 1; j >= idx; j--) {
+        const { panel, trigger } = openSubmenus[j];
+        closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true });
       }
     }, SUBMENU_CLOSE_DELAY_MS);
   }
@@ -486,6 +526,22 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     submenuHoverTimer = null;
   }
 
+  function closeAllSubmenus(): void {
+    if (submenuHoverTimer) clearTimeout(submenuHoverTimer);
+    submenuHoverTimer = null;
+    if (openSubmenus.length === 0) return;
+    for (let j = openSubmenus.length - 1; j >= 0; j--) {
+      const { panel, trigger } = openSubmenus[j];
+      closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true });
+    }
+  }
+
+  function onEnterRootItem(el: HTMLElement): void {
+    if (openSubmenus.length > 0 && openSubmenus[0].trigger !== el) {
+      closeAllSubmenus();
+    }
+  }
+
   function triggerSubmenu(sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
     openSubmenuPanel(sub, triggerEl);
   }
@@ -493,7 +549,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
   function buildRootContent(): void {
     root.innerHTML = "";
     menu.forEach((item) => {
-      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), submenuArrowConfig);
+      const node = createItemNode(item, close, triggerSubmenu, scheduleSubmenuOpen, scheduleSubmenuClose, makeHoverFocusHandler(root), onEnterRootItem, submenuArrowConfig);
       if (node) root.appendChild(node);
     });
   }
@@ -577,10 +633,9 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       }
       case "ArrowLeft": {
         e.preventDefault();
-        if (isSub && openSubmenu) {
-          const { panel, trigger } = openSubmenu;
-          openSubmenu = null;
-          closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: () => trigger.focus() });
+        if (isSub && openSubmenus.length > 0) {
+          const { panel, trigger } = openSubmenus[openSubmenus.length - 1];
+          closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true, onDone: () => trigger.focus() });
         } else {
           close();
         }
@@ -596,10 +651,9 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
       }
       case "Escape": {
         e.preventDefault();
-        if (isSub && openSubmenu) {
-          const { panel, trigger } = openSubmenu;
-          openSubmenu = null;
-          closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: false, onDone: () => trigger.focus() });
+        if (isSub && openSubmenus.length > 0) {
+          const { panel, trigger } = openSubmenus[openSubmenus.length - 1];
+          closeSubmenuWithAnimation(panel, trigger, { clearOpenSubmenu: true, onDone: () => trigger.focus() });
         } else {
           close();
         }
