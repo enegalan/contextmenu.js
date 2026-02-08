@@ -10,6 +10,7 @@
   --cm-separator-bg: rgba(0, 0, 0, 0.08);
   --cm-separator-margin: 4px 8px;
   --cm-separator-height: 1px;
+  --cm-item-radius: 0;
   --cm-item-hover-bg: rgba(0, 0, 0, 0.06);
   --cm-item-active-bg: rgba(0, 0, 0, 0.1);
   --cm-disabled-opacity: 0.5;
@@ -94,6 +95,7 @@
   font: inherit;
   color: inherit;
   box-sizing: border-box;
+  border-radius: var(--cm-item-radius);
 }
 
 .cm-item:hover:not([aria-disabled="true"]) {
