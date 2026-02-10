@@ -285,8 +285,8 @@ Build output is minified. Approximate sizes:
 
 | Asset | Size |
 |-------|------|
-| `dist/index.js` (ESM) | ~27 KB |
-| `dist/index.cjs` (CJS) | ~28 KB |
+| `dist/index.js` (ESM) | ~28 KB |
+| `dist/index.cjs` (CJS) | ~29 KB |
 | `dist/style.css` | ~8 KB (minified) |
 
 ---
