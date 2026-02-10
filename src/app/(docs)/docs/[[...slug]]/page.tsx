@@ -24,7 +24,7 @@ export default async function DocsPage({
   return (
     <div className="flex min-h-0 w-full flex-col gap-8 lg:flex-row">
       <OnThisPageMobile headings={headings} className="order-1 shrink-0 lg:hidden" />
-      <article className="order-2 min-w-0 flex-1 prose dark:prose-invert prose-neutral max-w-none lg:order-1">
+      <article className="order-2 pb-62 min-w-0 flex-1 prose dark:prose-invert prose-neutral max-w-none lg:order-1">
         {content}
       </article>
       <OnThisPage headings={headings} className="order-3 hidden shrink-0 lg:order-2 lg:block" />
