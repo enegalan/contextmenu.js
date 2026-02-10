@@ -147,34 +147,36 @@ export function OnThisPage({ headings, className }: OnThisPageProps) {
   if (headings.length === 0) return null;
 
   const navContent = (
-    <nav className="space-y-1 pr-2">
-      {headings.map((h) => {
-        const isActive = activeId === h.id;
-        return (
-          <a
-            key={h.id}
-            href={`#${h.id}`}
-            className={cn(
-              "relative block rounded-md py-1.5 text-sm transition-colors duration-150",
-              h.level === 2 &&
-                "font-medium text-foreground hover:text-primary",
-              h.level === 3 &&
-                "pl-3 text-muted-foreground hover:text-foreground",
-              isActive && "text-primary",
-              isActive && h.level === 2 && "pl-3",
-              isActive &&
-                "after:absolute after:-left-4 after:top-1/2 after:h-5 after:w-1 after:-translate-y-1/2 after:bg-primary after:content-['']"
-            )}
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById(h.id)?.scrollIntoView({ behavior: "smooth" });
-            }}
-          >
-            {h.text}
-          </a>
-        );
-      })}
-    </nav>
+    <div className="pl-4">
+      <nav className="w-fit space-y-1 border-l border-border pl-4 pr-2">
+        {headings.map((h) => {
+          const isActive = activeId === h.id;
+          return (
+            <a
+              key={h.id}
+              href={`#${h.id}`}
+              className={cn(
+                "relative block py-1.5 text-sm transition-colors duration-150",
+                h.level === 2 &&
+                  "font-medium text-foreground hover:text-primary",
+                h.level === 3 &&
+                  "pl-3 text-muted-foreground hover:text-foreground",
+                isActive && "text-primary",
+                isActive && h.level === 2 && "pl-3",
+                isActive &&
+                  "after:absolute after:-left-4 after:top-1/2 after:h-5 after:w-1 after:-translate-y-1/2 after:rounded-none after:bg-primary after:content-['']"
+              )}
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById(h.id)?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {h.text}
+            </a>
+          );
+        })}
+      </nav>
+    </div>
   );
 
   return (
@@ -219,7 +221,7 @@ export function OnThisPage({ headings, className }: OnThisPageProps) {
               </svg>
               On this page
             </p>
-            <ScrollArea className="min-h-0 flex-1 overflow-hidden border-l border-border pl-4">
+            <ScrollArea className="min-h-0 flex-1 overflow-hidden">
               {navContent}
             </ScrollArea>
           </aside>
