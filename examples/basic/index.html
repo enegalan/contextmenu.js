@@ -3,16 +3,153 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>contextmenu.js</title>
+  <title>contextmenu.js – Basic menu playground</title>
   <link rel="stylesheet" href="../../src/style.css">
   <style>
-    body { font-family: system-ui, sans-serif; padding: 2rem; }
-    .controls { margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
-    .controls label { font-weight: 500; }
-    .controls select { padding: 0.4rem 0.75rem; font-size: 14px; border-radius: 6px; min-width: 160px; }
-    .target { padding: 2rem; background: #f0f0f0; border-radius: 8px; margin-bottom: 1rem; }
-    .target p { margin: 0 0 0.5rem 0; color: #666; }
-    button { padding: 0.5rem 1rem; cursor: pointer; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #f9fafb 0%, #e5e7eb 40%, #d1d5db 100%);
+      min-height: 100vh;
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 3rem;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.75rem;
+    }
+    .lead {
+      margin: 0 0 1.75rem 0;
+      color: #4b5563;
+      font-size: 0.98rem;
+      max-width: 46rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+    @media (max-width: 840px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .controls {
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: 0.9rem;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .controls label {
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .controls select {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.9rem;
+      border-radius: 0.5rem;
+      min-width: 150px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+    }
+    .target-card {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 1rem;
+      padding: 1.3rem 1.4rem 1.4rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .target-card h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.05rem;
+    }
+    .target-card p {
+      margin: 0 0 0.75rem 0;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .target {
+      padding: 1.75rem 1.6rem;
+      background: #f3f4f6;
+      border-radius: 0.9rem;
+      margin-bottom: 0.5rem;
+      border: 1px dashed #d1d5db;
+    }
+    .target p {
+      margin: 0 0 0.5rem 0;
+      color: #4b5563;
+    }
+    .hint {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    .hint code {
+      background: #e5e7eb;
+      padding: 0.08rem 0.35rem;
+      border-radius: 0.25rem;
+    }
+    .actions {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    button {
+      padding: 0.55rem 1.1rem;
+      cursor: pointer;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.9rem;
+      background: #111827;
+      color: #f9fafb;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+    }
+    button:hover {
+      background: #020617;
+    }
+    .style-preview {
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.04);
+      color: #4b5563;
+      font-size: 0.82rem;
+    }
+    .side-panel {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 1rem;
+      padding: 1.1rem 1.3rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+      font-size: 0.88rem;
+      color: #4b5563;
+    }
+    .side-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+    }
+    .side-panel ol {
+      margin: 0.4rem 0 0.8rem 1.2rem;
+      padding: 0;
+    }
+    .side-panel li {
+      margin-bottom: 0.25rem;
+    }
+    .side-panel .tip {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
     .cm-theme-high-contrast .cm-item:hover:not([aria-disabled="true"]),
     .cm-theme-high-contrast .cm-item:focus-visible { color: #fff; background: var(--cm-item-hover-bg); }
     .custom-render-row { font-style: italic; }
@@ -30,55 +167,102 @@
   </style>
 </head>
 <body>
-  <h1>contextmenu.js</h1>
-  <div class="controls">
-    <label for="style-select">Menu style:</label>
-    <select id="style-select">
-      <option value="default">Default (light)</option>
-      <option value="dark">Dark</option>
-      <option value="compact">Compact</option>
-      <option value="rounded">Rounded</option>
-      <option value="minimal">Minimal</option>
-      <option value="flat">Flat</option>
-      <option value="high-contrast">High contrast</option>
-      <option value="blue">Blue accent</option>
-      <option value="warm">Warm</option>
-      <option value="sharp">Sharp</option>
-      <option value="spacious">Spacious</option>
-    </select>
-    <label for="max-height-select" style="margin-left: 1rem;">Max height:</label>
-    <select id="max-height-select">
-      <option value="default">Default</option>
-      <option value="200px">200px (scroll)</option>
-    </select>
-    <label for="animation-type" style="margin-left: 1rem;">Animation:</label>
-    <select id="animation-type">
-      <option value="fade" selected>Fade</option>
-      <option value="slide">Slide</option>
-    </select>
-    <label for="badge-style" style="margin-left: 1rem;">Badge style:</label>
-    <select id="badge-style">
-      <option value="default" selected>Default</option>
-      <option value="pill">Pill</option>
-      <option value="minimal">Minimal</option>
-      <option value="danger">Danger</option>
-      <option value="outline">Outline</option>
-    </select>
-    <span style="margin-left: 1rem;">
-      <label for="submenu-arrow">Submenu arrow:</label>
-      <select id="submenu-arrow">
-        <option value="off">Off</option>
-        <option value="default" selected>Default</option>
-        <option value="custom">Custom SVG</option>
-      </select>
-      <label for="submenu-arrow-size" id="submenu-arrow-size-label" style="display: none; margin-left: 0.5rem;">Size:</label>
-      <input type="number" id="submenu-arrow-size" value="14" min="8" max="24" style="display: none; width: 3rem; padding: 0.25rem; margin-left: 0.25rem;">
-    </span>
+  <div class="page">
+    <h1>contextmenu.js – Basic menu playground</h1>
+    <p class="lead">
+      Experiment with the core features of <code>createContextMenu</code>. Choose a visual style, tweak
+      behavior, then open the menu on the gray area or via the button.
+    </p>
+
+    <div class="layout">
+      <div>
+        <div class="controls">
+          <label for="style-select">Menu style:</label>
+          <select id="style-select">
+            <option value="default">Default (light)</option>
+            <option value="dark">Dark</option>
+            <option value="compact">Compact</option>
+            <option value="rounded">Rounded</option>
+            <option value="minimal">Minimal</option>
+            <option value="flat">Flat</option>
+            <option value="high-contrast">High contrast</option>
+            <option value="blue">Blue accent</option>
+            <option value="warm">Warm</option>
+            <option value="sharp">Sharp</option>
+            <option value="spacious">Spacious</option>
+          </select>
+          <label for="max-height-select">Max height:</label>
+          <select id="max-height-select">
+            <option value="default">Auto</option>
+            <option value="200px">200px (scrollable)</option>
+          </select>
+          <label for="animation-type">Animation:</label>
+          <select id="animation-type">
+            <option value="fade" selected>Fade</option>
+            <option value="slide">Slide</option>
+          </select>
+          <label for="badge-style">Badge style:</label>
+          <select id="badge-style">
+            <option value="default" selected>Default</option>
+            <option value="pill">Pill</option>
+            <option value="minimal">Minimal</option>
+            <option value="danger">Danger</option>
+            <option value="outline">Outline</option>
+          </select>
+          <span>
+            <label for="submenu-arrow">Submenu arrow:</label>
+            <select id="submenu-arrow">
+              <option value="off">Off</option>
+              <option value="default" selected>Default</option>
+              <option value="custom">Custom SVG</option>
+            </select>
+            <label for="submenu-arrow-size" id="submenu-arrow-size-label" style="display: none;">Size:</label>
+            <input
+              type="number"
+              id="submenu-arrow-size"
+              value="14"
+              min="8"
+              max="24"
+              style="display: none; width: 3rem; padding: 0.25rem; margin-left: 0.25rem;"
+            >
+          </span>
+        </div>
+
+        <div class="target-card">
+          <h2>Try the menu here</h2>
+          <p>
+            Right-click or long-press the area below. The menu will use the options you picked above.
+          </p>
+          <div class="target" id="target">
+            <p>Right-click or long-press here to open the context menu.</p>
+            <div class="hint">
+              Tip: use the button below to open the same menu anchored to an element with
+              <code>openAtElement</code>.
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" id="btn">Open menu at button</button>
+            <span class="style-preview" id="style-preview">
+              Style: Default (light) · Animation: fade
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <h3>What this example shows</h3>
+        <ol>
+          <li>How to build a menu once and re-bind it to elements.</li>
+          <li>How visual tokens and themes can be swapped at runtime.</li>
+          <li>How submenu arrows and max height can be customized.</li>
+        </ol>
+        <p class="tip">
+          Try changing a couple of options, then open the menu again.
+          Notice how keyboard navigation, shortcuts and badges stay the same while the skin changes.
+        </p>
+      </aside>
+    </div>
   </div>
-  <div class="target" id="target">
-    <p>Right-click or long-press here to open the context menu.</p>
-  </div>
-  <button type="button" id="btn">Open menu at button</button>
   <script type="module">
     import { createContextMenu } from "../../src/index.ts";
 
@@ -372,10 +556,22 @@
       };
     }
 
+    const styleSelect = document.getElementById("style-select");
+    const animationSelect = document.getElementById("animation-type");
+    const stylePreview = document.getElementById("style-preview");
+
+    function updateStylePreview() {
+      if (!stylePreview) return;
+      const styleLabel = styleSelect.options[styleSelect.selectedIndex].textContent;
+      const animationLabel = animationSelect.options[animationSelect.selectedIndex].textContent.toLowerCase();
+      stylePreview.textContent = `Style: ${styleLabel} · Animation: ${animationLabel}`;
+    }
+
     document.getElementById("style-select").addEventListener("change", () => {
       menu.destroy();
       menu = createMenu();
       bindMenu();
+      updateStylePreview();
     });
     function toggleArrowSizeVisibility() {
       const mode = document.getElementById("submenu-arrow").value;
@@ -405,6 +601,7 @@
       menu.destroy();
       menu = createMenu();
       bindMenu();
+      updateStylePreview();
     });
     document.getElementById("badge-style").addEventListener("change", () => {
       menu.destroy();
@@ -414,6 +611,7 @@
     toggleArrowSizeVisibility();
 
     bindMenu();
+    updateStylePreview();
   </script>
 </body>
 </html>

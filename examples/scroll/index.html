@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>contextmenu.js – Scroll</title>
+  <link rel="stylesheet" href="../../src/style.css">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 200vh;
+      background: linear-gradient(180deg, #f9fafb 0%, #e5e7eb 100%);
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    h1 {
+      margin: 0 0 0.75rem 0;
+      font-size: 1.75rem;
+    }
+    p.lead {
+      margin: 0 0 1.5rem 0;
+      color: #4b5563;
+      font-size: 0.95rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1.5rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      margin-bottom: 1.5rem;
+    }
+    .controls label {
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .controls input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .controls small {
+      display: block;
+      color: #6b7280;
+      font-weight: 400;
+      margin-left: 1.8rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+    @media (max-width: 800px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .target-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 0.9rem;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      border: 1px solid rgba(15, 23, 42, 0.05);
+    }
+    .target-card h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.1rem;
+    }
+    .target-card p {
+      margin: 0 0 0.75rem 0;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .demo-target {
+      margin-top: 0.75rem;
+      padding: 1.75rem 1.5rem;
+      background: #f3f4f6;
+      border-radius: 0.75rem;
+      border: 1px dashed #d1d5db;
+    }
+    .demo-target p {
+      margin: 0 0 0.25rem 0;
+      color: #4b5563;
+    }
+    .demo-target span {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    .side-panel {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 0.9rem;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+      border: 1px solid rgba(15, 23, 42, 0.05);
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+    .side-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+    }
+    .side-panel ul {
+      margin: 0.5rem 0 0 1.2rem;
+      padding: 0;
+    }
+    .side-panel li {
+      margin-bottom: 0.25rem;
+    }
+    .scroll-hint {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    .scroll-hint strong {
+      font-weight: 600;
+      color: #111827;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Scroll lock demo</h1>
+    <p class="lead">
+      Right-click or long-press the gray area while you scroll the page to see how
+      <code>lockScrollOutside</code> changes the behavior.
+    </p>
+
+    <div class="controls">
+      <div>
+        <label>
+          <input type="checkbox" id="lock-scroll-checkbox" checked>
+          Lock scroll outside while menu is open
+        </label>
+        <small>
+          When enabled (default), wheel and touchmove outside the menu are prevented while it is open.
+        </small>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="target-card">
+        <h2>Scroll and open the menu</h2>
+        <p>
+          Scroll the page a bit, then open the context menu on the area below and try to scroll again.
+        </p>
+        <div class="demo-target" id="scroll-target">
+          <p>Right-click or long-press here</p>
+          <span>(This element is bound with <code>menu.bind(target)</code>.)</span>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <h3>How to try it</h3>
+        <ul>
+          <li>Scroll the page until this panel moves.</li>
+          <li>Open the context menu on the gray box.</li>
+          <li>Try to scroll again with the menu open.</li>
+        </ul>
+        <p class="scroll-hint">
+          With <strong>Lock scroll</strong> enabled, background scrolling is blocked while the menu is open.
+          Disable it to allow normal page scrolling.
+        </p>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createContextMenu } from "../../src/index.ts";
+
+    const lockCheckbox = document.getElementById("lock-scroll-checkbox");
+    const target = document.getElementById("scroll-target");
+    const ITEM_ID = "lock-scroll-menu-checkbox";
+
+    function buildMenuConfig(lockScrollOutside) {
+      return {
+        menu: [
+          { label: "Refresh", shortcut: "Ctrl+R", onClick: () => console.log("Refresh") },
+          { label: "Inspect", shortcut: "Ctrl+Shift+I", onClick: () => console.log("Inspect") },
+          { type: "separator" },
+          {
+            type: "checkbox",
+            id: ITEM_ID,
+            label: "Lock scroll outside",
+            checked: lockScrollOutside,
+            closeOnAction: false,
+            onChange: ({ checked }) => {
+              lockCheckbox.checked = checked;
+              menu.setLockScrollOutside(checked);
+              menu.updateMenu((items) =>
+                items.map((item) =>
+                  item.type === "checkbox" && item.id === ITEM_ID ? { ...item, checked } : item
+                )
+              );
+            },
+          },
+        ],
+        lockScrollOutside,
+        position: { padding: 8, flip: true, shift: true },
+      };
+    }
+
+    let menu = createContextMenu(buildMenuConfig(lockCheckbox.checked));
+    menu.bind(target);
+
+    lockCheckbox.addEventListener("change", () => {
+      const checked = lockCheckbox.checked;
+      menu.setLockScrollOutside(checked);
+    });
+  </script>
+</body>
+</html>
+

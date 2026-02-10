@@ -6,55 +6,193 @@
   <title>Link & loading – contextmenu.js</title>
   <link rel="stylesheet" href="../../src/style.css">
   <style>
-    body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 560px; }
-    h1 { margin-top: 0; }
-    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: #f9f9f9; border-radius: 8px; }
-    .controls label { font-weight: 500; font-size: 0.9rem; }
-    .controls select { padding: 0.35rem 0.6rem; font-size: 14px; border-radius: 6px; border: 1px solid #ccc; }
-    .target { padding: 2rem; background: #f0f0f0; border-radius: 8px; margin-bottom: 1rem; }
-    .target p { margin: 0; color: #555; }
-    .note { font-size: 0.9rem; color: #666; margin-top: 1.5rem; }
-    .note code { background: #eee; padding: 0.1em 0.4em; border-radius: 4px; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #f9fafb 0%, #e5e7eb 40%, #d1d5db 100%);
+      min-height: 100vh;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 3rem;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.6rem;
+    }
+    .lead {
+      margin: 0 0 1.5rem 0;
+      color: #4b5563;
+      font-size: 0.96rem;
+      max-width: 40rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      padding: 0.9rem 1.1rem;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 0.9rem;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .controls label {
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .controls select {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.9rem;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      background: #fff;
+    }
+    .target-card {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 1rem;
+      padding: 1.3rem 1.4rem 1.4rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .target-card h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.05rem;
+    }
+    .target-card p {
+      margin: 0 0 0.75rem 0;
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .target {
+      padding: 1.75rem 1.6rem;
+      background: #f3f4f6;
+      border-radius: 0.9rem;
+      margin-bottom: 0.5rem;
+      border: 1px dashed #d1d5db;
+    }
+    .target p {
+      margin: 0;
+      color: #4b5563;
+    }
+    .note {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 1.5rem;
+    }
+    .note code {
+      background: #e5e7eb;
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+    }
+    .side-panel {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 1rem;
+      padding: 1.1rem 1.3rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+      font-size: 0.88rem;
+      color: #4b5563;
+    }
+    .side-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+    }
+    .side-panel ul {
+      margin: 0.4rem 0 0.8rem 1.2rem;
+      padding: 0;
+    }
+    .side-panel li {
+      margin-bottom: 0.25rem;
+    }
+    .side-panel .tip {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
   </style>
 </head>
 <body>
-  <h1>Link & loading</h1>
-  <p>Right-click the area below to open a menu with <strong>link</strong> items and an action that shows <strong>loading</strong> state.</p>
-  <div class="controls">
-    <span>
-      <label for="spinner-type">Loader style:</label>
-      <select id="spinner-type">
-        <option value="default">Default (circle)</option>
-        <option value="custom" selected>Custom SVG</option>
-      </select>
-    </span>
-    <span>
-      <label for="spinner-size">Size:</label>
-      <select id="spinner-size">
-        <option value="12">12px</option>
-        <option value="14">14px</option>
-        <option value="16" selected>16px</option>
-        <option value="18">18px</option>
-        <option value="20">20px</option>
-      </select>
-    </span>
-    <span>
-      <label for="spinner-speed">Speed (ms):</label>
-      <select id="spinner-speed">
-        <option value="400">400</option>
-        <option value="600">600</option>
-        <option value="800" selected>800</option>
-        <option value="1200">1200</option>
-      </select>
-    </span>
+  <div class="page">
+    <h1>Link & loading</h1>
+    <p class="lead">
+      Right-click the gray area to see <strong>link</strong> items and a menu action with a configurable
+      <strong>loading</strong> spinner.
+    </p>
+
+    <div class="layout">
+      <div>
+        <div class="controls">
+          <span>
+            <label for="spinner-type">Loader style:</label>
+            <select id="spinner-type">
+              <option value="default">Default (circle)</option>
+              <option value="custom" selected>Custom SVG</option>
+            </select>
+          </span>
+          <span>
+            <label for="spinner-size">Size:</label>
+            <select id="spinner-size">
+              <option value="12">12px</option>
+              <option value="14">14px</option>
+              <option value="16" selected>16px</option>
+              <option value="18">18px</option>
+              <option value="20">20px</option>
+            </select>
+          </span>
+          <span>
+            <label for="spinner-speed">Speed (ms):</label>
+            <select id="spinner-speed">
+              <option value="400">400</option>
+              <option value="600">600</option>
+              <option value="800" selected>800</option>
+              <option value="1200">1200</option>
+            </select>
+          </span>
+        </div>
+
+        <div class="target-card">
+          <h2>Try links and loading</h2>
+          <p>
+            Right-click or long-press the area below. Change the loader style, size and speed to see how the
+            spinner reacts while the “Save” action runs.
+          </p>
+          <div class="target" id="target">
+            <p>Right-click or long-press here.</p>
+          </div>
+          <p class="note">
+            The two first items are links; the “Save” item simulates an async operation and shows a spinner.
+          </p>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <h3>What this example shows</h3>
+        <ul>
+          <li><code>type: "link"</code> items with <code>href</code> and optional <code>target</code>/<code>rel</code>.</li>
+          <li>A “busy” action using <code>loading: true</code> and <code>updateMenu</code>.</li>
+          <li>Global spinner configuration via <code>config.spinner</code> plus per-item overrides.</li>
+        </ul>
+        <p class="tip">
+          Try changing size and speed before clicking “Save”. You can also inspect the console to see when the
+          async simulation starts and finishes.
+        </p>
+      </aside>
+    </div>
   </div>
-  <div class="target" id="target">
-    <p>Right-click or long-press here.</p>
-  </div>
-  <p class="note">
-    <strong>Links:</strong> Use <code>type: "link"</code> with <code>href</code>, optional <code>target</code> and <code>rel</code>. Ctrl/Cmd+click opens in a new tab.<br>
-    <strong>Loading:</strong> Set <code>loading: true</code> on an item, then use <code>updateMenu</code> to clear it. Customize via <code>config.spinner</code> or per item: <code>loadingIcon</code>, <code>loadingSize</code>, <code>loadingSpeed</code>.
-  </p>
   <script type="module">
     import { createContextMenu } from "../../src/index.ts";
 
