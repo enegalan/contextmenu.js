@@ -13,6 +13,7 @@
     "@docsearch/react": "^4.5.4",
     "@enegalan/contextmenu.js": "^1.4.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@vercel/analytics": "^1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
