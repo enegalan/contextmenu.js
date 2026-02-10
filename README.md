@@ -102,6 +102,7 @@ What you pass to `createContextMenu({ ... })`:
 | `position` | `{ offset?, padding?, flip?, shift?, zIndexBase?, submenuZIndexStep? }` | `offset`: `{ x, y }`. `padding`: viewport padding (px). `flip` / `shift`: keep menu in view. `zIndexBase`: base z-index for root menu. `submenuZIndexStep`: increment per submenu level so each stacks above the previous (0 = no increment). |
 | `portal` | `HTMLElement` or function | Where to mount the menu. Default: `document.body`. |
 | `getAnchor` | `() => { x, y }` or `DOMRect` | Used when `open()` is called with no arguments. |
+| `lockScrollOutside` | `boolean` | When `true` (default), prevent page scroll outside the menu while it is open (wheel/touchmove outside the menu are blocked). Set to `false` to allow background scrolling. |
 | `submenuPlacement` | `"right"` \| `"left"` \| `"auto"` | Where to open submenus. `"auto"` uses RTL and viewport space (default). |
 | `bind` | `HTMLElement` or `{ element, options? }` | Same as calling `menu.bind(element, options)` after create. |
 | `onOpen` | `(event?: MouseEvent) => void` | Called when menu opens. `event` is set when opened by right-click or bind. |

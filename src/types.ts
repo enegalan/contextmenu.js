@@ -440,6 +440,8 @@ export interface ContextMenuConfig {
   position?: PositionConfig;
   /** The function to get the anchor. */
   getAnchor?: () => { x: number; y: number } | DOMRect;
+  /** When true (default), prevent scrolling outside the menu while it is open. Set to false to allow page scroll. */
+  lockScrollOutside?: boolean;
   /** The container to mount the menu. */
   portal?: HTMLElement | (() => HTMLElement);
   /** The function to call when the menu is opened. Receives the MouseEvent when opened via contextmenu or bind; undefined when opened programmatically (e.g. open(x, y) or long-press). */
@@ -510,6 +512,8 @@ export interface ContextMenuInstance {
   setPosition(position: PositionConfig | undefined): void;
   /** Update animation config at runtime; applies to root and open submenus if menu is open. */
   setAnimation(animation: AnimationConfig | undefined): void;
+  /** Update scroll lock behavior at runtime; when called while open it immediately enables/disables scroll lock outside the menu. */
+  setLockScrollOutside(lock: boolean): void;
 }
 
 /**
@@ -544,6 +548,8 @@ export interface ContextMenuState {
   outsideClickHandler: ((e: MouseEvent) => void) | null;
   /** The handler for resize events. */
   resizeHandler: (() => void) | null;
+  /** The handler used to lock scrolling outside the menu (wheel/touchmove). */
+  scrollLockHandler: ((e: WheelEvent | TouchEvent) => void) | null;
   /** The bound element. */
   boundElement: HTMLElement | null;
   /** The handler for contextmenu events. */

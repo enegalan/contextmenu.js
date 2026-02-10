@@ -78,6 +78,36 @@ import {
 const OPEN_MENU_INSTANCES = new Set<{ close(): Promise<void> }>();
 
 /**
+ * Enable scroll lock outside the wrapper while the menu is open.
+ * @param state - The state.
+ */
+function enableScrollLock(state: ContextMenuState): void {
+  if (state.scrollLockHandler || state.currentConfig.lockScrollOutside === false) return;
+  const handler = (event: WheelEvent | TouchEvent): void => {
+    const target = event.target as Node | null;
+    if (!target) return;
+    if (state.wrapper.contains(target)) return;
+    if ("preventDefault" in event) event.preventDefault();
+  };
+  state.scrollLockHandler = handler;
+  const listener = handler as unknown as EventListener;
+  document.addEventListener("wheel", listener, { passive: false, capture: true });
+  document.addEventListener("touchmove", listener, { passive: false, capture: true });
+}
+
+/**
+ * Disable scroll lock outside the wrapper.
+ * @param state - The state.
+ */
+function disableScrollLock(state: ContextMenuState): void {
+  if (!state.scrollLockHandler) return;
+  const listener = state.scrollLockHandler as unknown as EventListener;
+  document.removeEventListener("wheel", listener, true);
+  document.removeEventListener("touchmove", listener, true);
+  state.scrollLockHandler = null;
+}
+
+/**
  * Get the portal element.
  * @param portal - The portal element or function that returns the portal element.
  * @returns The portal element.
@@ -1213,6 +1243,7 @@ function realClose(state: ContextMenuState): Promise<void> {
         return;
       }
       state.closePromiseResolve = resolve;
+      disableScrollLock(state);
       state.isOpen = false;
       if (state.outsideClickHandler) {
         document.removeEventListener("mousedown", state.outsideClickHandler, true);
@@ -1490,6 +1521,7 @@ function openImpl(state: ContextMenuState, xOrEvent?: number | MouseEvent, y?: n
       state.isOpen = true;
       state.buildRootContent();
       if (!state.wrapper.parentElement) state.portal.appendChild(state.wrapper);
+      enableScrollLock(state);
       state.outsideClickHandler = (e: MouseEvent): void => {
         if (!state.wrapper.contains(e.target as Node)) void state.realClose();
       };
@@ -1690,6 +1722,7 @@ function destroy(state: ContextMenuState): void {
     window.removeEventListener("resize", state.resizeHandler);
     state.resizeHandler = null;
   }
+  disableScrollLock(state);
   if (state.leaveTimeout) clearTimeout(state.leaveTimeout);
   if (state.submenuHoverTimer) clearTimeout(state.submenuHoverTimer);
   state.wrapper.remove();
@@ -1735,6 +1768,18 @@ function setAnimation(state: ContextMenuState, animation: ContextMenuConfig["ani
   state.currentConfig.animation = animation;
   applyAnimationConfig(state.root, state.currentConfig);
   for (const { panel } of state.openSubmenus) applyAnimationConfig(panel, state.currentConfig);
+}
+
+/**
+ * Set lockScrollOutside at runtime.
+ * @param state - The state.
+ * @param lock - Whether to lock scroll outside while open.
+ */
+function setLockScrollOutside(state: ContextMenuState, lock: boolean): void {
+  state.currentConfig.lockScrollOutside = lock;
+  if (!state.isOpen) return;
+  if (lock) enableScrollLock(state);
+  else disableScrollLock(state);
 }
 
 /**
@@ -1803,6 +1848,7 @@ function createInstance(state: ContextMenuState): ContextMenuInstance {
     setTheme: (theme) => setTheme(state, theme),
     setPosition: (position) => setPosition(state, position),
     setAnimation: (animation) => setAnimation(state, animation),
+    setLockScrollOutside: (lock) => setLockScrollOutside(state, lock),
   };
 }
 
@@ -1841,6 +1887,7 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     submenuHoverTimer: null,
     outsideClickHandler: null,
     resizeHandler: null,
+    scrollLockHandler: null,
     boundElement: null,
     boundContextmenu: null!,
     boundTouchstart: null!,
