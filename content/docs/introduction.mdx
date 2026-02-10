@@ -1,0 +1,36 @@
+---
+title: Introduction
+---
+
+# Introduction
+
+**contextmenu.js** is a smooth, customizable context menu library for the web. Use it to show right-click or long-press menus that feel native and are fully accessible.
+
+## What it does
+
+- Renders a menu at the pointer (or next to an element) with items, separators, and nested submenus.
+- Supports actions, links, checkboxes, radio groups, and custom renderers.
+- Handles positioning at viewport edges (flip/shift), animations, and theming via CSS or config.
+- Works with keyboard navigation and screen readers (ARIA, roving tabindex, shortcuts).
+
+## Features
+
+- **TypeScript-first** — Full typings for menu items and API.
+- **Framework-agnostic** — Use with React, Vue, Svelte, or vanilla JS.
+- **Accessible** — ARIA roles, keyboard (arrows, Enter, Escape), focus management, and shortcut display.
+- **Customizable** — Override styles with CSS variables, theme config, or custom item renderers.
+
+## How it works (high level)
+
+Flow: **User** (right-click or long-press) → **bind or open** → **Position** (menu) → **Render** → **Action** (select or close).
+
+1. You create a menu with `createContextMenu({ menu: [...] })`.
+2. You either **bind** it to an element (so it opens on right-click/long-press) or call **open** / **openAtElement** from your own event handlers.
+3. The library positions the menu (with optional flip/shift to stay in view), renders it (often in a portal), and handles selection and close.
+4. When the user picks an item or dismisses the menu, your callbacks run and the menu closes.
+
+Next: [Installation](/docs/installation) → [Basic usage](/docs/basic-usage) → [Concepts](/docs/concepts). For a hands-on try, see the [Examples](/examples/basic-menu).
+
+<Callout type="tip" title="Quick path">
+  Install the package, import the default CSS, call createContextMenu with a menu array, then call menu.bind(element). Right-click the element to open the menu.
+</Callout>

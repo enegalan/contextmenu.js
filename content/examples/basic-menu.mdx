@@ -1,0 +1,25 @@
+---
+title: Basic menu
+---
+
+# Basic menu
+
+A simple context menu with actions, a separator, and a submenu.
+
+## What you'll see
+
+Right-click or long-press the demo area below. A menu opens with two top-level items (Copy, Paste), a separator, and a “More” item that opens a submenu with Rename and Delete. Click an item to run its action (they only log in this demo).
+
+## Key points
+
+- **bind** — The menu is attached to the demo area with `menu.bind(element)`, so it opens on right-click or long-press.
+- **Actions** — Each clickable row is an action item with `label` and `onClick`. Shortcuts (Ctrl+C, Ctrl+V) are shown when provided.
+- **Separator** — `{ type: "separator" }` adds a horizontal divider between groups.
+- **Submenu** — `{ type: "submenu", label: "More", children: [...] }` opens a nested list on hover or Arrow Right.
+
+<ExampleRunner preset="basic-menu" />
+
+## Related
+
+- [Basic usage](/docs/basic-usage) — Steps to create and bind a menu.
+- [API reference — Menu item types](/docs/api-reference#menu-item-types) — Action, separator, submenu, and other types.

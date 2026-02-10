@@ -1,0 +1,326 @@
+---
+title: API reference
+---
+
+# API reference
+
+The API consists of: (1) the object returned by `createContextMenu(config)` and its methods, (2) the config options you pass to `createContextMenu`, and (3) the menu item types you use inside `menu`.
+
+---
+
+## Instance methods
+
+What you get from `createContextMenu(config)`:
+
+<ApiTable
+  headers={["Method", "Description"]}
+  rows={[
+    ["open(x?, y?) / open(event)", <>Show menu at coordinates or at the event position. Returns a Promise that resolves with the selected item when the menu closes, or undefined if closed without selection. See <a href="#menu-item-types">Menu item types</a> for the selected item shape.</>],
+    ["close()", "Close the menu. Returns a Promise that resolves when the close animation finishes."],
+    ["toggle(x?, y?)", "Open if closed, close if open."],
+    ["openAtElement(el, options?)", <>Show menu next to an element. options.placement: bottom-start, top-end, auto, etc. options.offset: x,y object in px. See <a href="#menu-item-types">Menu item types</a> for the selected item shape.</>],
+    ["isOpen()", "true if the menu is visible."],
+    ["getAnchor()", "Returns the last open anchor coordinates (x, y), or null."],
+    ["getMenu()", <>Copy of the current menu (array of items). See <a href="#menu-item-types">Menu item types</a> for the item shape.</>],
+    ["getRootElement()", "The wrapper DOM element (for tests or styling)."],
+    ["unbind(element?)", "Remove bind from the given element, or from the currently bound element if no argument."],
+    ["setMenu(menu)", <>Replace the menu. menu is an array of menu items. See <a href="#menu-item-types">Menu item types</a>.</>],
+    ["updateMenu(updater)", <>Change the menu from current state. updater is a function: (currentItems) =&gt; newItems. See <a href="#menu-item-types">Menu item types</a>.</>],
+    ["setTheme(theme)", <>Change theme at runtime. theme: object with class/tokens or undefined to clear. See <a href="/docs/theming">Theming</a> doc.</>],
+    ["setPosition(position)", <>Change position config for next open. See <a href="/docs/configuration">Configuration</a> doc.</>],
+    ["setAnimation(animation)", <>Change animation at runtime. See <a href="/docs/animations">Animations</a> doc.</>],
+    ["bind(element, options?)", <>Open menu on right-click / long-press. options.longPressMs: delay for long-press (default 500). See <a href="/docs/configuration">Configuration</a> doc.</>],
+    ["destroy()", "Remove menu and all listeners."],
+  ]}
+/>
+
+### open
+
+Shows the menu at the given coordinates or at the event’s client position. If called with no arguments, the library uses the **getAnchor** config to get the anchor.
+
+- **Signature:** `open(x?: number, y?: number): Promise<MenuItem | undefined>` and `open(event: MouseEvent | PointerEvent): Promise<MenuItem | undefined>`
+- **Returns:** A Promise that resolves with the selected menu item when the menu closes, or `undefined` if the user closed without selecting.
+- **Types:** [MenuItem](#menu-item-types) — structure of the selected item.
+
+```js
+const selected = await menu.open(200, 100);
+if (selected) console.log("Selected:", selected.label);
+
+element.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  menu.open(e);
+});
+```
+
+### close
+
+Closes the menu and runs the leave animation. Returns a Promise that resolves when the close animation finishes.
+
+- **Signature:** `close(): Promise<void>`
+
+```js
+await menu.close();
+```
+
+### openAtElement
+
+Shows the menu positioned relative to an element (e.g. a button). Useful for dropdown-style menus.
+
+- **Signature:**
+
+```ts
+openAtElement(el: HTMLElement, options?: { placement?: string; offset?: { x: number; y: number } }): Promise<MenuItem | undefined>
+```
+- **Types:** [MenuItem](#menu-item-types) — structure of the selected item.
+- **placement:** e.g. `"bottom-start"`, `"top-end"`, `"auto"` — where the menu appears relative to the element.
+- **offset:** Optional x,y object in pixels.
+
+```js
+await menu.openAtElement(button, { placement: "bottom-start", offset: { x: 0, y: 4 } });
+```
+
+### bind
+
+Attaches the menu to an element so it opens on right-click (desktop) or long-press (touch). Removes any previous bind on that instance.
+
+- **Signature:**
+
+```ts
+bind(element: HTMLElement, options?: { longPressMs?: number }): void
+```
+- **longPressMs:** Delay in ms before the menu opens on touch (default 500).
+
+```js
+menu.bind(document.getElementById("area"), { longPressMs: 400 });
+```
+
+### setMenu
+
+Replaces the entire menu with a new array of items. Takes effect on the next open (or immediately if the menu is open and you want to reflect changes on next interaction).
+
+- **Signature:** `setMenu(menu: MenuItem[]): void`
+- **Types:** [MenuItem](#menu-item-types) — structure of each menu item.
+
+```js
+menu.setMenu([
+  { label: "Option A", onClick: () => {} },
+  { label: "Option B", onClick: () => {} },
+]);
+```
+
+### updateMenu
+
+Updates the menu from its current state. The updater receives the current items and returns the new items.
+
+- **Signature:**
+
+```ts
+updateMenu(updater: (currentItems: MenuItem[]) => MenuItem[]): void
+```
+- **Types:** [MenuItem](#menu-item-types) — structure of menu items.
+
+```js
+menu.updateMenu((items) => [...items, { type: "separator" }, { label: "New", onClick: () => {} }]);
+```
+
+### setTheme
+
+Changes the theme at runtime. Pass an object with `class` (CSS class on the menu root) and/or `tokens` (e.g. bg and fg mapping to `--cm-bg`, `--cm-fg`). Pass `undefined` to clear.
+
+- **Signature:**
+
+```ts
+setTheme(theme?: { class?: string; tokens?: Record<string, string> }): void
+```
+
+```js
+menu.setTheme({ class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } });
+menu.setTheme(undefined);
+```
+
+### destroy
+
+Removes the menu DOM and all event listeners. Call this when the component or page is torn down.
+
+- **Signature:** `destroy(): void`
+
+```js
+menu.destroy();
+```
+
+---
+
+## Config options
+
+What you pass to createContextMenu:
+
+<ApiTable
+  headers={["Option", "Type", "Description"]}
+  rows={[
+    ["menu", "MenuItem array or function", <>The menu tree. If a function, it runs each time the menu opens (dynamic menu). See <a href="#menu-item-types">Menu item types</a> below.</>],
+    ["submenuArrow", "boolean or object", "true = default chevron. Object: icon, size, className, opacity."],
+    ["spinner", "object", "Default loading spinner. Overridable per item via loadingIcon, loadingSize, loadingSpeed."],
+    ["theme", "object", <>class: CSS class on menu. tokens: e.g. bg, fg (sets --cm-bg, --cm-fg). See <a href="/docs/theming">Theming</a> doc.</>],
+    ["animation", "object", <>type: fade or slide. enter/leave: ms or duration/easing. disabled: true = no animation. See <a href="/docs/animations">Animations</a> doc.</>],
+    ["position", "object", <>Viewport padding, flip/shift to keep in view, z-index. See <a href="/docs/configuration">Configuration</a> doc.</>],
+    ["portal", "HTMLElement or function", <>Where to mount the menu. Default: document.body. See <a href="/docs/configuration">Configuration</a> doc.</>],
+    ["getAnchor", "function or DOMRect", <>Used when open() is called with no arguments. See <a href="/docs/configuration">Configuration</a> doc.</>],
+    ["submenuPlacement", "right | left | auto", "Where to open submenus. auto uses RTL and viewport space."],
+    ["bind", "HTMLElement or object", "Same as calling menu.bind(element, options) after create."],
+    ["onOpen", "(event?) => void", "Called when menu opens."],
+    ["onClose", "(context?) => void", "Called when menu closes (after leave animation). context has selectedItem and anchor."],
+    ["onBeforeOpen", "(event?, context?) => boolean | void | Promise", "Return false to cancel."],
+    ["onAfterClose", "(context?) => void", "Called after the menu is fully closed."],
+    ["onBeforeClose", "() => boolean | void | Promise", "Return false to cancel close."],
+    ["onItemHover", "(payload) => void", "Called when the user hovers or focuses an interactive item."],
+    ["closeOnResize", "boolean", "If true, menu closes on window resize."],
+    ["shortcutIcons", "Record", "Map of shortcut part names to SVG or HTMLElement."],
+    ["platform", "mac | win | auto", "Override platform for shortcut display. Default auto detects."],
+  ]}
+/>
+
+---
+
+## Menu item types
+
+Each entry in the `menu` array (and in submenu `children`) is one of the following types. Omitted `type` defaults to an action item.
+
+### Action (default)
+
+Clickable item. No need to set `type` unless you use another type.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["label", "string", "Text shown for the item."],
+    ["icon", "string | HTMLElement", "Optional icon (HTML string or element)."],
+    ["shortcut", "string", "Optional shortcut text (e.g. \"Ctrl+C\"). Display follows platform."],
+    ["badge", "string", "Optional badge text."],
+    ["disabled", "boolean", "If true, item is not clickable."],
+    ["loading", "boolean", "Shows a spinner; typically used while an async action runs."],
+    ["variant", "\"danger\" | \"info\" | \"success\" | \"warning\" | \"muted\"", "Optional style variant (adds a CSS class)."],
+    ["onClick", "(payload) => void", "Called when the item is activated. Payload includes close and event."],
+    ["closeOnAction", "boolean", "If true (default), menu closes after click."],
+    ["render", "(item) => HTMLElement", "Optional custom renderer; you return the DOM node, library still wires role and click."],
+  ]}
+/>
+
+```js
+{ label: "Copy", shortcut: "Ctrl+C", onClick: () => copy() }
+{ label: "Delete", variant: "danger", onClick: ({ close }) => { remove(); close(); } }
+```
+
+### Link
+
+Opens a URL. Use `type: "link"`.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "\"link\"", "Required."],
+    ["label", "string", "Link text."],
+    ["href", "string", "URL."],
+    ["icon", "string | HTMLElement", "Optional."],
+    ["shortcut", "string", "Optional."],
+    ["target", "string", "e.g. \"_blank\"."],
+    ["rel", "string", "e.g. \"noopener noreferrer\"."],
+  ]}
+/>
+
+```js
+{ type: "link", label: "Documentation", href: "https://example.com/docs", target: "_blank" }
+```
+
+### Submenu
+
+Opens a nested list. Use `type: "submenu"`.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "submenu", "Required."],
+    ["label", "string", "Label for the submenu trigger."],
+    ["children", "array or function or async function", "Nested items. Function/async for lazy loading."],
+    ["icon", "string or HTMLElement", "Optional."],
+    ["shortcut", "string", "Optional."],
+  ]}
+/>
+
+```js
+{ type: "submenu", label: "More", children: [
+  { label: "Rename", onClick: () => rename() },
+  { label: "Delete", onClick: () => remove() },
+]}
+```
+
+### Separator
+
+Horizontal divider. No other props.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "\"separator\"", "Required."],
+  ]}
+/>
+
+```js
+{ type: "separator" }
+```
+
+### Checkbox
+
+Toggle item. Use `type: "checkbox"`.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "\"checkbox\"", "Required."],
+    ["label", "string", "Label text."],
+    ["checked", "boolean", "Checked state."],
+    ["onChange", "(checked: boolean) => void", "Called when toggled."],
+    ["leadingIcon", "string | HTMLElement", "Optional."],
+    ["icon / uncheckedIcon", "string | HTMLElement", "Optional icons for checked/unchecked."],
+  ]}
+/>
+
+```js
+{ type: "checkbox", label: "Show grid", checked: showGrid, onChange: (v) => setShowGrid(v) }
+```
+
+### Radio
+
+Single selection within a group. Use `type: "radio"`.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "\"radio\"", "Required."],
+    ["label", "string", "Label text."],
+    ["name", "string", "Group name (all radios with same name are grouped)."],
+    ["value", "string", "Value for this option."],
+    ["checked", "boolean", "Whether this option is selected."],
+    ["onSelect", "() => void", "Called when selected."],
+  ]}
+/>
+
+```js
+{ type: "radio", name: "size", label: "Small", value: "s", checked: size === "s", onSelect: () => setSize("s") }
+{ type: "radio", name: "size", label: "Large", value: "l", checked: size === "l", onSelect: () => setSize("l") }
+```
+
+### Label
+
+Non-clickable header or section title. Use `type: "label"`.
+
+<ApiTable
+  headers={["Prop", "Type", "Description"]}
+  rows={[
+    ["type", "\"label\"", "Required."],
+    ["label", "string", "Text to show."],
+  ]}
+/>
+
+```js
+{ type: "label", label: "Section title" }
+```

@@ -1,0 +1,90 @@
+---
+title: Basic usage
+---
+
+# Basic usage
+
+This page walks through the minimal steps to show a context menu and then how to open it from code or close it.
+
+## Step 1: Create the menu
+
+Call `createContextMenu` with at least a `menu` array. Each entry is an item (action), separator, or submenu.
+
+```js
+import { createContextMenu } from "@enegalan/contextmenu.js";
+import "@enegalan/contextmenu.js/dist/style.css";
+
+const menu = createContextMenu({
+  menu: [
+    { label: "Copy", shortcut: "Ctrl+C", onClick: () => copy() },
+    { label: "Paste", shortcut: "Ctrl+V", onClick: ({ close }) => { paste(); close(); } },
+    { type: "separator" },
+    { type: "submenu", label: "More", children: [
+      { label: "Rename", onClick: () => rename() },
+      { label: "Delete", onClick: () => remove() },
+    ]},
+  ],
+});
+```
+
+## Step 2: Define the menu tree
+
+The `menu` option is an array of [menu items](/docs/api-reference#menu-item-types). You can use:
+
+- **Actions** — `label`, `onClick`, optional `shortcut`, `icon`, `disabled`, `loading`.
+- **Separators** — `{ type: "separator" }`.
+- **Submenus** — `{ type: "submenu", label: "...", children: [...] }`.
+- Links, checkboxes, radio groups, and labels — see [API reference](/docs/api-reference#menu-item-types).
+
+The example above uses actions, one separator, and one submenu with two actions.
+
+## Step 3: Attach to an element (open on right-click / long-press)
+
+Call `menu.bind(element)` so the menu opens on right-click (desktop) or long-press (touch) on that element:
+
+```js
+menu.bind(document.getElementById("my-area"));
+```
+
+After this, right-clicking or long-pressing the element opens the menu at the pointer.
+
+## Opening from your own event
+
+To open the menu from a custom handler (e.g. a button click or a specific `contextmenu` listener), prevent the default context menu and call `open` with the event:
+
+```js
+element.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  menu.open(e);
+});
+```
+
+The menu appears at the event coordinates.
+
+## Opening and closing from code
+
+- **Open at coordinates** — `menu.open(x, y)` or `menu.open()`. With no arguments, the library uses the `getAnchor` config to get coordinates. Returns a Promise that resolves with the selected item when the menu closes (or `undefined` if closed without selection).
+- **Open next to an element** — `menu.openAtElement(button, { placement: "bottom-start", offset: { x: 0, y: 4 } })`. See [API reference](/docs/api-reference) for placement values.
+- **Close** — `menu.close()`. Returns a Promise that resolves when the close animation finishes.
+- **Check if open** — `menu.isOpen()`.
+
+```js
+const selected = await menu.open(200, 100);
+menu.close();
+menu.openAtElement(button, { placement: "bottom-start" });
+```
+
+## Summary: what to use when
+
+<ApiTable
+  headers={["Goal", "Method or option"]}
+  rows={[
+    ["Open on right-click / long-press on an element", "menu.bind(element)"],
+    ["Open at pointer position from your handler", "menu.open(event) or menu.open(x, y)"],
+    ["Open next to a specific element", "menu.openAtElement(el, options)"],
+    ["Close the menu", "menu.close()"],
+    ["Know if the menu is visible", "menu.isOpen()"],
+  ]}
+/>
+
+For full API details see the [API reference](/docs/api-reference). For how the menu tree and positioning work see [Concepts](/docs/concepts). For runnable demos see [Basic menu](/examples/basic-menu) and [Programmatic control](/examples/programmatic-control).

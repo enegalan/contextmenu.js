@@ -1,0 +1,89 @@
+---
+title: Animations
+---
+
+# Animations
+
+Control enter and leave animations via the **animation** config passed to `createContextMenu`. You can also override timing with CSS variables.
+
+## Animation options
+
+<ApiTable
+  headers={["Option", "Type", "Description"]}
+  rows={[
+    ["type", "\"fade\" or \"slide\"", "fade (default): opacity and scale. slide: opacity and translate."],
+    ["enter", "number or object", "Duration in ms, or object with duration and easing."],
+    ["leave", "number or object", "Same as enter for the leave animation."],
+    ["disabled", "boolean", "If true, no enter/leave animation."],
+  ]}
+/>
+
+**Types:**
+
+- **fade** — The menu fades in and out and scales slightly (opacity and scale).
+- **slide** — The menu fades in and out and moves (opacity and translate).
+
+## Config example
+
+```js
+createContextMenu({
+  menu: [...],
+  animation: {
+    type: "slide",
+    enter: 150,
+    leave: 100,
+  },
+});
+```
+
+With explicit easing:
+
+```js
+createContextMenu({
+  menu: [...],
+  animation: {
+    enter: { duration: 150, easing: "ease-out" },
+    leave: { duration: 80, easing: "ease-in" },
+  },
+});
+```
+
+## Disable animations
+
+```js
+createContextMenu({
+  menu: [...],
+  animation: { disabled: true },
+});
+```
+
+## CSS variables for timing
+
+You can override animation timing in CSS. The library sets these on the menu root; override them to change timing without changing config.
+
+<ApiTable
+  headers={["Variable", "Description", "Default"]}
+  rows={[
+    ["--cm-enter-duration", "Enter animation duration", "120ms"],
+    ["--cm-leave-duration", "Leave animation duration", "80ms"],
+    ["--cm-enter-easing", "Enter animation easing", "ease-out"],
+    ["--cm-leave-easing", "Leave animation easing", "ease-in"],
+  ]}
+/>
+
+Example:
+
+```css
+.cm-menu {
+  --cm-enter-duration: 150ms;
+  --cm-leave-duration: 100ms;
+  --cm-enter-easing: ease-out;
+  --cm-leave-easing: ease-in;
+}
+```
+
+You can change animation at runtime with `menu.setAnimation(animation)`. See [API reference](/docs/api-reference).
+
+<Callout type="tip" title="Try it live">
+  Use the [Examples](/examples/basic-menu) to try different animation types and timings without changing code.
+</Callout>

@@ -1,0 +1,134 @@
+---
+title: Configuration and customization
+---
+
+# Configuration and customization
+
+You configure the menu by passing options to `createContextMenu()`. This page covers the main options; for the full list and types see [API reference](/docs/api-reference).
+
+## Options overview
+
+<ApiTable
+  headers={["Option", "Type", "Description", "Default (concept)"]}
+  rows={[
+    ["menu", "MenuItem[] or function", <>Menu tree (or function for dynamic menu). See <a href="/docs/api-reference#menu-item-types">Menu item types</a> for the structure.</>, "—"],
+    ["position", "object", "offset, padding, flip, shift, zIndex", "library defaults"],
+    ["portal", "HTMLElement or function", "Where to mount the menu DOM", "document.body"],
+    ["submenuPlacement", "right / left / auto", "Where submenus open", "auto"],
+    ["getAnchor", "function or DOMRect", "Used when open() is called with no args", "—"],
+    ["closeOnResize", "boolean", "Close menu on window resize", "false"],
+    ["shortcutIcons", "Record", "Custom icons for shortcut keys", "—"],
+    ["platform", "mac / win / auto", "Override platform for shortcut display", "auto"],
+  ]}
+/>
+
+Other options (theme, animation, bind, onOpen, onClose, etc.) are documented in the [API reference](/docs/api-reference).
+
+---
+
+## Position
+
+Control where the menu appears and how it behaves near viewport edges.
+
+**When to use:** Adjust `offset` and `padding` for visual tweaks; use `flip` and `shift` so the menu stays on screen when space is limited.
+
+- **offset** — `{ x, y }` in pixels added to the anchor (e.g. small gap from the pointer).
+- **padding** — Minimum distance in pixels between the menu and the viewport edge.
+- **flip** — If the menu would overflow, flip it to the opposite side (e.g. open to the left instead of right).
+- **shift** — If it still overflows, shift along the edge so it stays in view.
+- **zIndexBase** / **submenuZIndexStep** — Base z-index and step for submenus so they stack above the root menu.
+
+<Mermaid chart="flowchart LR\n  A[Anchor]\n  B[offset]\n  C[Menu]\n  D[padding]\n  A --> B --> C --> D" />
+
+```js
+createContextMenu({
+  menu: [...],
+  position: {
+    offset: { x: 0, y: 4 },
+    padding: 12,
+    flip: true,
+    shift: true,
+    zIndexBase: 10000,
+    submenuZIndexStep: 1,
+  },
+});
+```
+
+You can change position at runtime with `menu.setPosition(position)`.
+
+---
+
+## Portal
+
+By default the menu is mounted into `document.body`. Use **portal** to mount it somewhere else (e.g. inside a modal container or a div with a specific z-index context).
+
+**When to use:** When the menu must be inside a particular DOM node for stacking, overflow, or styling reasons.
+
+```js
+createContextMenu({
+  menu: [...],
+  portal: document.getElementById("modal-root"),
+});
+```
+
+Portal can also be a function that returns an `HTMLElement`, so you can resolve the container when the menu opens.
+
+---
+
+## Submenu placement
+
+Controls where submenus open relative to the parent item: **"right"**, **"left"**, or **"auto"**. With `"auto"`, the library chooses based on RTL and available space.
+
+```js
+createContextMenu({
+  menu: [...],
+  submenuPlacement: "auto", // or "right" | "left"
+});
+```
+
+---
+
+## getAnchor
+
+Used when you call `menu.open()` with no arguments. The library calls **getAnchor** to get the coordinates (or a DOMRect) where the menu should appear.
+
+**When to use:** When you open the menu programmatically without an event or element (e.g. from a keyboard shortcut or a timer).
+
+```js
+createContextMenu({
+  menu: [...],
+  getAnchor: () => ({ x: 100, y: 100 }),
+});
+```
+
+---
+
+## closeOnResize
+
+If `true`, the menu closes when the window is resized. Prevents the menu from staying in a wrong position or overlapping after a resize.
+
+```js
+createContextMenu({
+  menu: [...],
+  closeOnResize: true,
+});
+```
+
+---
+
+## shortcutIcons and platform
+
+**shortcutIcons** — Map of shortcut part names (e.g. `ctrl`, `enter`) to SVG strings or `HTMLElement`s. Use this to show custom icons for modifier keys or Enter on Windows.
+
+**platform** — Force shortcut display for a specific OS: `"mac"`, `"win"`, or `"auto"` (default; detects from the environment). On Mac, Cmd is shown; on Windows/Linux, Ctrl.
+
+```js
+createContextMenu({
+  menu: [...],
+  shortcutIcons: {
+    ctrl: '<svg viewBox="0 0 24 24">...</svg>',
+    enter: '<svg>...</svg>',
+  },
+  platform: "win", // or "mac" | "auto"
+});
+```

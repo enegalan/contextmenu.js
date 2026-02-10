@@ -1,0 +1,97 @@
+---
+title: Theming
+---
+
+# Theming
+
+You can style the menu by loading the default CSS and overriding variables, or by passing a **theme** config (class and/or tokens). Item variants add optional CSS classes for danger, info, success, warning, and muted.
+
+## Default styles
+
+Load the default stylesheet so the menu has background, padding, and hover states. Without it, the menu is unstyled but still functional.
+
+```css
+@import "@enegalan/contextmenu.js/dist/style.css";
+```
+
+Or in JS:
+
+```js
+import "@enegalan/contextmenu.js/dist/style.css";
+```
+
+## Override with CSS variables
+
+Target the menu root (e.g. `.cm-menu` or a class you set via `theme.class`) and set variables. This applies to all menus using that class.
+
+```css
+@import "@enegalan/contextmenu.js/dist/style.css";
+
+.cm-menu {
+  --cm-bg: #1e1e1e;
+  --cm-fg: #eee;
+  --cm-radius: 8px;
+}
+```
+
+## Theme config (class + tokens)
+
+Pass **theme** when creating the menu. **class** adds a CSS class to the menu root so you can scope overrides. **tokens** set CSS variables (e.g. `bg` → `--cm-bg`, `fg` → `--cm-fg`).
+
+```js
+createContextMenu({
+  menu: [...],
+  theme: {
+    class: "my-menu",
+    tokens: { bg: "#1e1e1e", fg: "#eee" },
+  },
+});
+```
+
+## CSS variables reference
+
+Set these on the menu root (e.g. `.cm-menu` or your theme class). Example values are typical defaults or common overrides.
+
+<ApiTable
+  headers={["Variable", "Description", "Example value"]}
+  rows={[
+    ["--cm-bg", "Menu background", "#1e1e1e"],
+    ["--cm-fg", "Foreground (text) color", "#eee"],
+    ["--cm-radius", "Menu border radius", "8px"],
+    ["--cm-shadow", "Box shadow", "0 4px 12px rgba(0,0,0,0.15)"],
+    ["--cm-menu-padding", "Inner padding of the menu", "4px"],
+    ["--cm-menu-min-width", "Minimum menu width", "180px"],
+    ["--cm-menu-max-height", "Max height before scroll (use none for no scroll)", "300px"],
+    ["--cm-item-radius", "Item border radius", "4px"],
+    ["--cm-item-padding-x, --cm-item-padding-y", "Item horizontal/vertical padding", "8px, 6px"],
+    ["--cm-item-hover-bg, --cm-item-active-bg", "Hover and active background", "rgba(255,255,255,0.08)"],
+    ["--cm-font-size", "Font size", "14px"],
+    ["--cm-border", "Menu border", "1px solid rgba(255,255,255,0.08)"],
+    ["--cm-separator-bg", "Separator line color", "rgba(255,255,255,0.08)"],
+    ["--cm-disabled-opacity", "Opacity for disabled items", "0.5"],
+    ["--cm-shortcut-font-size, --cm-shortcut-opacity", "Shortcut text size and opacity", "12px, 0.7"],
+    ["--cm-z-index", "Base z-index", "10000"],
+    ["--cm-spinner-size", "Loading spinner size", "16px"],
+  ]}
+/>
+
+## Item variants
+
+Action items can set **variant** to get an extra CSS class and often a different color. Classes added: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`. You can override these in your CSS.
+
+```js
+{ label: "Delete", variant: "danger", onClick: () => remove() }
+```
+
+## Runtime theme change
+
+Use `menu.setTheme(theme)` to switch theme after creation. Pass `undefined` to clear.
+
+```js
+menu.setTheme({ class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } });
+menu.setTheme(undefined); // clear theme
+```
+
+<Callout type="tip" title="Dark theme example">
+  Copy-paste to get a dark menu: load the default CSS, then add a class and set tokens: `theme: { class: "cm-dark", tokens: { bg: "#1a1a1a", fg: "#e0e0e0" } }`. In your CSS, target `.cm-dark` and override `--cm-item-hover-bg` / `--cm-separator-bg` if you want different hover and separator colors.
+</Callout>

@@ -1,0 +1,49 @@
+---
+title: Concepts
+---
+
+# Concepts
+
+This page explains the main ideas behind contextmenu.js: the menu tree, anchoring, portaling, and the open/close cycle.
+
+## Menu tree
+
+The menu is a tree of items. The root is the top-level list you pass as `menu`. Each entry can be:
+
+- An **action** (default) — clickable item with optional label, icon, shortcut.
+- A **separator** — horizontal line between groups.
+- A **submenu** — an item that opens a nested list (`children`), which can again contain actions, separators, or submenus.
+- Other types: **link**, **checkbox**, **radio**, **label** (see [API reference](/docs/api-reference#menu-item-types)).
+
+<Mermaid chart="flowchart TB\n  Root[Menu root]\n  Root --> MI[MenuItem]\n  MI --> Action[action]\n  MI --> Sep[separator]\n  MI --> Sub[submenu]\n  MI --> Link[link]\n  MI --> Other[checkbox / radio / label]\n  Sub --> SubMI[MenuItem]\n  SubMI --> SubAction[action]\n  SubMI --> SubSep[separator]\n  SubMI --> SubSub[submenu]\n  SubMI --> SubOther[...]\n  SubSub --> SubSubMI[MenuItem]\n  SubSubMI -.->|same types| MI" />
+
+Submenu `children` can be an array, a function that returns an array, or an async function (for lazy-loaded items). See [Nested menus](/examples/nested-menus).
+
+## Anchor
+
+The **anchor** is the point where the menu is positioned (e.g. where the user right-clicked).
+
+- When you call `menu.open(event)`, the anchor is the event’s client coordinates.
+- When you call `menu.open(x, y)`, the anchor is `(x, y)`.
+- When you call `menu.open()` with no arguments, the library uses the **getAnchor** config (function or DOMRect) to get the anchor.
+- When you call `menu.openAtElement(el, options)`, the menu is positioned relative to the element (e.g. `bottom-start`), not a raw point.
+
+So the anchor is either a coordinate pair or derived from an element’s bounds.
+
+## Portal
+
+The menu is rendered into a **portal**: a DOM container that can be outside your app’s normal tree (e.g. to avoid overflow or z-index issues). By default the portal is `document.body`. You can set **portal** to another `HTMLElement` (or a function that returns one) so the menu mounts inside a specific node (e.g. a modal root or a scoped wrapper). See [Configuration](/docs/configuration#portal).
+
+## Lifecycle
+
+Rough lifecycle:
+
+1. **Open** — You trigger the menu via `bind` (right-click/long-press) or by calling `open` / `openAtElement`.
+2. **Position** — The library computes the menu’s position (with optional offset, padding, flip, and shift so it stays in view). See [Configuration](/docs/configuration#position).
+3. **Render** — The menu DOM is created and mounted in the portal; enter animation runs.
+4. **User action** — The user selects an item (your callbacks run) or dismisses the menu (click outside, Escape).
+5. **Close** — Leave animation runs, then the menu is removed; focus returns to the trigger when applicable.
+
+<Mermaid chart="flowchart LR\n  A[1. Open<br/>bind · open · openAtElement] --> B[2. Position<br/>anchor · offset · flip] --> C[3. Render<br/>DOM · portal · enter] --> D[4. User action<br/>select · dismiss] --> E[5. Close<br/>leave · unmount · focus]" />
+
+For more on positioning and options, see [Configuration](/docs/configuration) and [API reference](/docs/api-reference).

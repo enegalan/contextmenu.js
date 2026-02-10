@@ -1,0 +1,24 @@
+---
+title: Custom renderers
+---
+
+# Custom renderers
+
+Use the **render** prop on action, checkbox, or radio items to return your own DOM element. The library still sets role, tabindex, and wires click and keyboard.
+
+## What you'll see
+
+Right-click or long-press the demo area. The first item is built with a custom renderer (italic “Custom render: …” text); the second is a default action row. Both are focusable and clickable; only the visual content differs.
+
+## Key points
+
+- **render** — A function `(item) => HTMLElement`. You create and return the DOM node; the library attaches it, sets accessibility attributes, and handles click/focus.
+- **Use case** — Custom layout, icons, or markup that the default item template doesn’t support.
+- **Still accessible** — Role, tabindex, and keyboard handling are applied to your element, so you only control the visual content.
+
+<ExampleRunner preset="custom-renderers" />
+
+## Related
+
+- [API reference — Action](/docs/api-reference#action-default) — The `render` prop and other action options.
+- [Accessibility](/docs/accessibility) — Keyboard and screen reader behavior.

@@ -1,0 +1,25 @@
+---
+title: Nested menus
+---
+
+# Nested menus
+
+Menus can have multiple levels: submenus open to the side (or flip to the other side when space is limited).
+
+## What you'll see
+
+Right-click or long-press the demo area. The menu has a “New” action, an “Open” submenu (with “File…” and a “Recent” submenu containing files), a separator, and “Save”. Hover “Open” then “Recent” to open nested submenus, or use Arrow Right and Enter to open them with the keyboard.
+
+## Key points
+
+- **Nested submenus** — A submenu’s `children` can include another `type: "submenu"` for arbitrary depth.
+- **children** — Can be an array (as here), a function that returns an array, or an async function for lazy-loaded items.
+- **Positioning** — Submenus open to the right by default (or left in RTL); use [Configuration — Submenu placement](/docs/configuration#submenu-placement) to control.
+
+<ExampleRunner preset="nested-menus" />
+
+## Related
+
+- [Concepts — Menu tree](/docs/concepts#menu-tree) — How the menu tree is structured.
+- [API reference — Submenu](/docs/api-reference#submenu) — Submenu props and children.
+- [Configuration](/docs/configuration) — Portal, position, submenu placement.

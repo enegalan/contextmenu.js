@@ -1,0 +1,45 @@
+---
+title: Installation
+---
+
+# Installation
+
+## Requirements
+
+- Node.js and npm (or yarn/pnpm). The package is distributed as ESM by default; CommonJS is available.
+
+## Install from npm
+
+```bash
+npm install @enegalan/contextmenu.js
+```
+
+The library ships as **ESM** by default. For CommonJS (e.g. Node or older bundlers), use the built file `dist/index.cjs`.
+
+## Load the default CSS
+
+The menu needs styles to look correct. Import the default stylesheet after installing:
+
+```js
+import "@enegalan/contextmenu.js/dist/style.css";
+```
+
+<Callout type="note" title="Without the CSS">
+  If you skip this import, the menu will still open and function, but it will have no default styling (no background, spacing, or hover states). You can instead provide your own CSS using the same class names and variables; see [Theming](/docs/theming).
+</Callout>
+
+## Verify it works
+
+Minimal example to confirm the setup:
+
+```js
+import { createContextMenu } from "@enegalan/contextmenu.js";
+import "@enegalan/contextmenu.js/dist/style.css";
+
+const menu = createContextMenu({
+  menu: [{ label: "Hello", onClick: () => console.log("Clicked") }],
+});
+menu.bind(document.body);
+```
+
+Right-click the page; you should see a menu with one item. Next: [Basic usage](/docs/basic-usage).

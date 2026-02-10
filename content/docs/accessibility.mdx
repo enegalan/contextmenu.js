@@ -1,0 +1,54 @@
+---
+title: Accessibility
+---
+
+# Accessibility
+
+contextmenu.js is built with accessibility in mind: ARIA roles, keyboard navigation, focus management, and screen reader support.
+
+## ARIA
+
+The menu and its items use appropriate ARIA roles and attributes so assistive technologies can announce structure and state.
+
+- **Root** — The menu container has `role="menu"`.
+- **Items** — Action items use `role="menuitem"`. Checkboxes use `menuitemcheckbox`, radio items use `menuitemradio`. Links are exposed as menu items with the correct semantics.
+- **Submenus** — The submenu trigger has `aria-haspopup="menu"` and `aria-expanded` to reflect open/closed state.
+- **Separators** — Have `role="separator"`.
+- **Labels** — Non-clickable labels use `role="presentation"` so they don’t appear as selectable items.
+
+## Keyboard
+
+When the menu is open, the following keys are supported:
+
+<ApiTable
+  headers={["Key", "Action"]}
+  rows={[
+    ["Arrow Up / Arrow Down", "Move focus to previous/next item."],
+    ["Arrow Right / Enter", "Open a submenu (when focus is on a submenu item)."],
+    ["Arrow Left", "Close the current submenu and focus the parent, or close the root menu if at top level."],
+    ["Enter / Space", "Activate the focused item (run action, follow link, toggle checkbox/radio)."],
+    ["Escape", "Close the current submenu or the root menu."],
+    ["Home / End", "Focus the first or last focusable item in the current list."],
+  ]}
+/>
+
+When the menu is open, pressing an item’s **shortcut** (e.g. Ctrl+C or Cmd+C) runs that item. Ctrl and Cmd are treated as equivalent on macOS and Windows/Linux, so the displayed shortcut matches the platform.
+
+## Focus
+
+**Roving tabindex** is used: only one item in the menu has `tabindex="0"` at a time; the rest have `tabindex="-1"`. Arrow keys move focus and update which item has `tabindex="0"`, so keyboard users can move through the list without tabbing through every item.
+
+When the menu closes, **focus returns to the trigger element** (the element that had focus when the menu opened, e.g. the bound element or the button you used with `openAtElement`). This keeps focus in a predictable place for keyboard and screen reader users.
+
+## Screen readers
+
+The roles and structure allow screen readers to announce the menu and each item. To get clear announcements:
+
+- Use a descriptive **label** on every item (see [Menu item types](/docs/api-reference#menu-item-types)).
+- Use **shortcut** when an item has a keyboard shortcut, so it’s announced (e.g. “Copy, Ctrl+C”).
+
+Avoid leaving items without a label; use `type: "label"` for section headers and keep action labels concise but clear.
+
+<Callout type="tip" title="Testing with screen readers">
+  Test with a screen reader (e.g. NVDA on Windows, VoiceOver on macOS) to confirm the menu and items are announced correctly. Open the menu with the keyboard (e.g. Shift+F10 or your trigger), then use Arrow keys and Enter to navigate and activate. Ensure every actionable item has a meaningful label and shortcut when applicable.
+</Callout>
