@@ -21,11 +21,7 @@ export const metadata: Metadata = {
     "A smooth, customizable context-menu library. TypeScript-first, framework-agnostic, with keyboard and screen-reader support.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
