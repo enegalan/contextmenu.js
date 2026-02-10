@@ -24,12 +24,16 @@ function getCodeClassName(children: React.ReactNode): string {
   return "";
 }
 
+type CodeBlockProps = React.ComponentProps<"pre"> & {
+  "data-theme"?: string;
+};
+
 export function CodeBlock({
   children,
   className,
   style,
   ...props
-}: React.ComponentProps<"pre">) {
+}: CodeBlockProps) {
   const codeText = getCodeText(children);
   const codeClassName = getCodeClassName(children);
   const isMermaid = codeClassName.includes("language-mermaid");

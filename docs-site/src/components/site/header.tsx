@@ -43,7 +43,7 @@ export function Header() {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "transition-colors duration-150",
+                  "transition-all duration-150 border border-transparent hover:backdrop-blur-sm",
                   pathname.startsWith(item.href.split("/")[1])
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -54,7 +54,12 @@ export function Header() {
             </Link>
           ))}
           <ThemeToggle />
-          <Button variant="ghost" size="icon" asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="transition-all duration-150 border border-transparent hover:backdrop-blur-sm hover:scale-105"
+          >
             <a
               href={GITHUB_URL}
               target="_blank"

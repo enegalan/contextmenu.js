@@ -1,4 +1,4 @@
-import type { MenuItem } from "@enegalan/contextmenu.js";
+import type { MenuItem, MenuItemAction } from "@enegalan/contextmenu.js";
 
 export type ExamplesMenuConfig = {
   label: string;
@@ -133,7 +133,7 @@ if (el) menu.bind(el);`,
       {
         type: "item",
         label: "Custom row",
-        render: (item: MenuItem) => {
+        render: (item: MenuItemAction) => {
           const el = document.createElement("div");
           el.className = "flex items-center gap-2 px-3 py-2 italic";
           el.textContent = "Custom render: " + item.label;

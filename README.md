@@ -39,6 +39,11 @@ menu.bind(document.getElementById("my-element"));
 
 Right-click (or long-press on touch) the element to open the menu.
 
+## Documentation
+
+- **[Full documentation](https://contextmenujs.vercel.app/docs/introduction)** — installation, concepts, API, configuration, theming, accessibility.
+- **[Examples](https://contextmenujs.vercel.app/examples/basic-menu)** — basic menu, nested menus, custom renderers, programmatic control, and more.
+
 ## License
 
 MIT

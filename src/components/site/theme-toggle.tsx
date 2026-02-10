@@ -23,7 +23,7 @@ export function ThemeToggle() {
       size="icon"
       onClick={handleToggle}
       aria-label="Toggle theme"
-      className="transition-transform duration-200 ease-out hover:scale-105"
+      className="transition-all duration-200 ease-out border border-transparent hover:backdrop-blur-sm hover:scale-105"
     >
       <Sun className="h-5 w-5 rotate-0 scale-100 transition-[transform,opacity] duration-200 ease-out dark:rotate-90 dark:scale-0" />
       <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-[transform,opacity] duration-200 ease-out dark:rotate-0 dark:scale-100" />
