@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 export default function PlaygroundPage() {
   const { resolvedTheme } = useTheme();
-  const [state, setState] = useState<PlaygroundState>(defaultPlaygroundState);
+  const [state, setState] = useState<PlaygroundState>(() => defaultPlaygroundState());
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [draggedSubmenuId, setDraggedSubmenuId] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export default function PlaygroundPage() {
   const menuInstanceRef = useRef<ReturnType<typeof createContextMenu> | null>(null);
   const scrollLockHandlerRef = useRef<((e: Event) => void) | null>(null);
 
-  const selectedItem = selectedItemId ? findMenuItem(state.menuItems, selectedItemId) : null;
+  const selectedItem = selectedItemId ? findMenuItem(state?.menuItems, selectedItemId) : null;
 
   const updateItem = (id: string, partial: Partial<EditableMenuItem>) => {
     setState((s) => ({
@@ -50,8 +50,8 @@ export default function PlaygroundPage() {
 
   const setRadioGroup = (selectedId: string, name: string, _value: string) => {
     setState((s) => {
-      const setRadioChecked = (items: EditableMenuItem[]): EditableMenuItem[] =>
-        items.map((it) => {
+      const setRadioChecked = (items: EditableMenuItem[] | undefined): EditableMenuItem[] =>
+        (items ?? []).map((it) => {
           if (it.type === "radio" && it.name === name)
             return { ...it, checked: it.id === selectedId };
           if (it.type === "submenu" && "children" in it)
@@ -67,7 +67,7 @@ export default function PlaygroundPage() {
     onRadioSelect: (id, name, value) => setRadioGroup(id, name, value),
   };
 
-  const menu = buildMenuFromEditable(state.menuItems, menuCallbacks);
+  const menu = buildMenuFromEditable(state?.menuItems, menuCallbacks);
 
   useEffect(() => {
     const sandboxEl = sandboxRef.current;
@@ -192,7 +192,7 @@ export default function PlaygroundPage() {
   ]);
 
   const updateItems = (updater: (prev: EditableMenuItem[]) => EditableMenuItem[]) => {
-    setState((s) => ({ ...s, menuItems: updater(s.menuItems) }));
+    setState((s) => ({ ...s, menuItems: updater(s.menuItems ?? []) }));
   };
 
   const addItem = (type: EditableMenuItem["type"]) => {
@@ -220,7 +220,7 @@ export default function PlaygroundPage() {
   const reorderItems = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
     setState((s) => {
-      const next = s.menuItems.slice();
+      const next = (s.menuItems ?? []).slice();
       const [removed] = next.splice(fromIndex, 1);
       next.splice(toIndex, 0, removed);
       return { ...s, menuItems: next };
@@ -228,8 +228,8 @@ export default function PlaygroundPage() {
   };
 
   const removeItem = (id: string) => {
-    const remove = (items: EditableMenuItem[]): EditableMenuItem[] =>
-      items.flatMap((it): EditableMenuItem[] => {
+    const remove = (items: EditableMenuItem[] | undefined): EditableMenuItem[] =>
+      (items ?? []).flatMap((it): EditableMenuItem[] => {
         if (it.id === id) return [];
         if (it.type === "submenu" && "children" in it)
           return [{ ...it, children: remove(it.children) } as EditableSubmenu];
@@ -263,7 +263,7 @@ export default function PlaygroundPage() {
       ...s,
       menuItems: updateMenuItem(s.menuItems, submenuId, (it) => {
         if (it.type !== "submenu") return it;
-        return { ...it, children: [...it.children, newChild] } as EditableSubmenu;
+        return { ...it, children: [...(it.children ?? []), newChild] } as EditableSubmenu;
       }),
     }));
   };
@@ -274,7 +274,7 @@ export default function PlaygroundPage() {
       ...s,
       menuItems: updateMenuItem(s.menuItems, submenuId, (it) => {
         if (it.type !== "submenu") return it;
-        const next = it.children.slice();
+        const next = (it.children ?? []).slice();
         const [removed] = next.splice(fromIndex, 1);
         next.splice(toIndex, 0, removed);
         return { ...it, children: next } as EditableSubmenu;
@@ -343,7 +343,7 @@ export default function PlaygroundPage() {
                   ))}
                 </div>
                 <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
-                  {state.menuItems.map((it, index) => (
+                  {(state?.menuItems ?? []).map((it, index) => (
                     <li
                       key={it.id}
                       data-index={index}
@@ -831,7 +831,7 @@ export default function PlaygroundPage() {
                             )}
                           </div>
                           <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
-                            {(selectedItem as EditableSubmenu).children.map((child, index) => (
+                            {((selectedItem as EditableSubmenu)?.children ?? []).map((child, index) => (
                               <li
                                 key={child.id}
                                 data-index={index}

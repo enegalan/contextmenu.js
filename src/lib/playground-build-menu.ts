@@ -112,7 +112,7 @@ function buildMenuItem(editable: EditableMenuItem): MenuItem {
     }
     case "submenu": {
       const s = editable as EditableSubmenu;
-      const childrenMenu: MenuItem[] = s.children.map(buildMenuItem);
+      const childrenMenu: MenuItem[] = (s.children ?? []).map(buildMenuItem);
       const children = s.lazy
         ? () =>
             new Promise<MenuItem[]>((resolve) =>
@@ -163,10 +163,11 @@ function buildMenuItemWithCallbacks(
 }
 
 export function buildMenuFromEditable(
-  items: EditableMenuItem[],
+  items: EditableMenuItem[] | undefined,
   callbacks?: PlaygroundMenuCallbacks
 ): MenuItem[] {
+  const list = items ?? [];
   if (!callbacks?.onCheckboxChange && !callbacks?.onRadioSelect)
-    return items.map(buildMenuItem);
-  return items.map((it) => buildMenuItemWithCallbacks(it, callbacks));
+    return list.map(buildMenuItem);
+  return list.map((it) => buildMenuItemWithCallbacks(it, callbacks));
 }

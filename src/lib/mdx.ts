@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import rehypePrettyCode from "rehype-pretty-code";
+import remarkGfm from "remark-gfm";
 import { compileMDX } from "next-mdx-remote/rsc";
 import { docSlugs, exampleSlugs } from "./docs-nav";
 import { mdxComponents } from "@/components/docs/mdx-components";
@@ -89,6 +90,7 @@ export async function getMdxBySlug(
   const headings = getHeadingsFromMdxSource(source);
   const rehypePrettyCodeOptions = getRehypePrettyCodeOptions(theme);
   const mdxOptions = {
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [[rehypePrettyCode, rehypePrettyCodeOptions] as [typeof rehypePrettyCode, typeof rehypePrettyCodeOptions]],
   };
   const { content, frontmatter } = await compileMDX({

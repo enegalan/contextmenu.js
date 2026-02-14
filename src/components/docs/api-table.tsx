@@ -7,12 +7,15 @@ interface ApiTableProps {
 }
 
 export function ApiTable({ headers, rows, className }: ApiTableProps) {
+  const headerList = headers ?? [];
+  const rowList = rows ?? [];
+  if (headerList.length === 0 && rowList.length === 0) return null;
   return (
     <div className="my-6 overflow-x-auto rounded-lg border border-border">
       <table className="w-full min-w-[400px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50">
-            {headers.map((h, i) => (
+            {headerList.map((h, i) => (
               <th
                 key={i}
                 className={cn(
@@ -26,9 +29,9 @@ export function ApiTable({ headers, rows, className }: ApiTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {rowList.map((row, i) => (
             <tr key={i} className="border-b border-border/60 last:border-0">
-              {row.map((cell, j) => (
+              {(Array.isArray(row) ? row : []).map((cell, j) => (
                 <td
                   key={j}
                   className={cn(

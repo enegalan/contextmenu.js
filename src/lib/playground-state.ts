@@ -210,8 +210,9 @@ export function generateId(): string {
 }
 
 /** Find an item by id in the tree (depth-first). */
-export function findMenuItem(items: EditableMenuItem[], id: string): EditableMenuItem | null {
-  for (const it of items) {
+export function findMenuItem(items: EditableMenuItem[] | undefined, id: string): EditableMenuItem | null {
+  const list = items ?? [];
+  for (const it of list) {
     if (it.id === id) return it;
     if (it.type === "submenu" && "children" in it) {
       const found = findMenuItem(it.children, id);
@@ -223,11 +224,12 @@ export function findMenuItem(items: EditableMenuItem[], id: string): EditableMen
 
 /** Update an item by id; returns new items array. */
 export function updateMenuItem(
-  items: EditableMenuItem[],
+  items: EditableMenuItem[] | undefined,
   id: string,
   updater: (item: EditableMenuItem) => EditableMenuItem
 ): EditableMenuItem[] {
-  return items.map((it) => {
+  const list = items ?? [];
+  return list.map((it) => {
     if (it.id === id) return updater(it);
     if (it.type === "submenu" && "children" in it)
       return { ...it, children: updateMenuItem(it.children, id, updater) };

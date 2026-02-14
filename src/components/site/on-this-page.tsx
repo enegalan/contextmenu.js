@@ -71,7 +71,7 @@ export function OnThisPageMobile({ headings, className }: OnThisPageProps) {
                 : " mt-1 pl-3";
           return (
             <a
-              key={h.id}
+              key={`${h.id}-${index}`}
               href={`#${h.id}`}
               className={cn(
                 "text-muted-foreground hover:text-foreground py-0.5 transition-colors",
@@ -149,11 +149,11 @@ export function OnThisPage({ headings, className }: OnThisPageProps) {
   const navContent = (
     <div className="pl-4">
       <nav className="w-fit space-y-1 border-l border-border pl-4 pr-2">
-        {headings.map((h) => {
+        {headings.map((h, index) => {
           const isActive = activeId === h.id;
           return (
             <a
-              key={h.id}
+              key={`${h.id}-${index}`}
               href={`#${h.id}`}
               className={cn(
                 "relative block py-1.5 text-sm transition-colors duration-150",

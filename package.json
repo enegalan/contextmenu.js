@@ -1,6 +1,6 @@
 {
   "name": "docs-site",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -26,6 +26,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "rehype-pretty-code": "^0.14.1",
+    "remark-gfm": "^4.0.1",
     "shiki": "^3.22.0",
     "tailwind-merge": "^3.4.0"
   },
