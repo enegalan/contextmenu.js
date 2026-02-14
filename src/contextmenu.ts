@@ -63,8 +63,7 @@ function _openImpl(state: ContextMenuState, xOrEvent?: number | MouseEvent, y?: 
       } else {
         const noCoords = xOrEvent === undefined && y === undefined;
         if (noCoords && state.currentConfig.getAnchor) {
-          const anchor = state.currentConfig.getAnchor();
-          const coords = getCoordsFromAnchor(anchor);
+          const coords = getCoordsFromAnchor(state.currentConfig.getAnchor());
           xCoord = coords.x;
           yCoord = coords.y;
         } else {
@@ -163,7 +162,6 @@ function _unbind(state: ContextMenuState, el?: HTMLElement): void {
  */
 function _bind(state: ContextMenuState, el: HTMLElement, options?: BindOptions): void {
   _unbind(state);
-  const longPressMs = options?.longPressMs ?? DEFAULT_LONG_PRESS_MS;
   state.boundContextmenu = (e: MouseEvent): void => {
     e.preventDefault();
     if ("pointerType" in e && (e as PointerEvent).pointerType === "touch") return;
@@ -177,7 +175,7 @@ function _bind(state: ContextMenuState, el: HTMLElement, options?: BindOptions):
     state.longPressTimer = setTimeout(() => {
       state.longPressTimer = null;
       _openImpl(state, state.longPressX, state.longPressY);
-    }, longPressMs);
+    }, options?.longPressMs ?? DEFAULT_LONG_PRESS_MS);
   };
   state.boundTouchEndOrCancel = (): void => _clearLongPressTimer(state);
   el.addEventListener("contextmenu", state.boundContextmenu);
