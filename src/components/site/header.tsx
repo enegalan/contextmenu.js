@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 const mainNav = [
   { label: "Docs", href: "/docs/introduction" },
   { label: "Examples", href: "/examples/basic-menu" },
+  { label: "Playground", href: "/playground" },
 ];
 
 const GITHUB_URL = "https://github.com/egalan/contextmenu.js";
@@ -78,7 +79,7 @@ export function Header() {
                 size="sm"
                 className={cn(
                   "transition-all duration-150 border border-transparent hover:backdrop-blur-sm",
-                  pathname.startsWith(item.href.split("/")[1])
+                  pathname === item.href || pathname.startsWith(item.href + "/")
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
