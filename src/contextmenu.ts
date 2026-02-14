@@ -1233,8 +1233,10 @@ function closeSubmenuWithAnimation(
 function realClose(state: ContextMenuState): Promise<void> {
   return new Promise((resolve) => {
     (async () => {
+      disableScrollLock(state);
       const allow = await Promise.resolve(state.currentConfig.onBeforeClose?.());
       if (allow === false) {
+        if (state.isOpen) enableScrollLock(state);
         resolve();
         return;
       }
@@ -1243,7 +1245,6 @@ function realClose(state: ContextMenuState): Promise<void> {
         return;
       }
       state.closePromiseResolve = resolve;
-      disableScrollLock(state);
       state.isOpen = false;
       if (state.outsideClickHandler) {
         document.removeEventListener("mousedown", state.outsideClickHandler, true);
