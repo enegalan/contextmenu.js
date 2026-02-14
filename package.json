@@ -1,6 +1,6 @@
 {
   "name": "docs-site",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,7 @@
   "dependencies": {
     "@docsearch/css": "^4.5.4",
     "@docsearch/react": "^4.5.4",
-    "@enegalan/contextmenu.js": "^1.4.0",
+    "@enegalan/contextmenu.js": "^1.5.0",
     "@tailwindcss/typography": "^0.5.19",
     "@vercel/analytics": "^1.6.1",
     "class-variance-authority": "^0.7.1",
