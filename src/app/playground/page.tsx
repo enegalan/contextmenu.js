@@ -132,6 +132,14 @@ export default function PlaygroundPage() {
       closeOnResize: state.behavior.closeOnResize,
       bind: { element: sandboxEl, options: { longPressMs: state.behavior.longPressMs } },
       onOpen: () => {
+        const removeScrollLock = () => {
+          const prev = scrollLockHandlerRef.current;
+          if (!prev) return;
+          document.removeEventListener("wheel", prev, scrollOpts);
+          document.removeEventListener("touchmove", prev, scrollOpts);
+          scrollLockHandlerRef.current = null;
+        };
+        removeScrollLock();
         if (!state.behavior.lockScrollOutside) return;
         const root = contextMenu.getRootElement();
         const handler = (e: Event) => {
@@ -142,6 +150,13 @@ export default function PlaygroundPage() {
         scrollLockHandlerRef.current = handler;
         document.addEventListener("wheel", handler, scrollOpts);
         document.addEventListener("touchmove", handler, scrollOpts);
+      },
+      onClose: () => {
+        const handler = scrollLockHandlerRef.current;
+        if (!handler) return;
+        document.removeEventListener("wheel", handler, scrollOpts);
+        document.removeEventListener("touchmove", handler, scrollOpts);
+        scrollLockHandlerRef.current = null;
       },
     });
 
@@ -155,6 +170,12 @@ export default function PlaygroundPage() {
     }
 
     return () => {
+      const handler = scrollLockHandlerRef.current;
+      if (handler) {
+        document.removeEventListener("wheel", handler, scrollOpts);
+        document.removeEventListener("touchmove", handler, scrollOpts);
+        scrollLockHandlerRef.current = null;
+      }
       menuInstanceRef.current = null;
       contextMenu.destroy();
     };
