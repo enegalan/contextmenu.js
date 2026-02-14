@@ -27,7 +27,8 @@ export type {
   SubmenuChildren,
   SubmenuPlacement,
   ThemeConfig,
+  TimingConfig,
   AnimationConfig,
   AnimationType,
   PositionConfig,
-} from "./types.js";
+} from "./lib/types.js";

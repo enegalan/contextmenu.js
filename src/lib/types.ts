@@ -388,11 +388,6 @@ export type OpenAtElementOptions = {
 };
 
 /**
- * Placement for opening the menu at an element.
- */
-export type Placement = NonNullable<OpenAtElementOptions["placement"]>;
-
-/**
  * Element to bind so the menu opens on contextmenu (desktop) and long-press (touch).
  * Either pass the element directly or { element, options } for bind options (e.g. longPressMs).
  */
@@ -421,11 +416,23 @@ export interface CloseContext {
 }
 
 /**
+ * Optional timing overrides. When omitted, defaults from the library are used.
+ */
+export interface TimingConfig {
+  /** Delay in ms before opening a submenu on hover. */
+  submenuHoverDelayMs?: number;
+  /** Delay in ms before closing a submenu when pointer leaves. */
+  submenuCloseDelayMs?: number;
+}
+
+/**
  * Context menu configuration.
  */
 export interface ContextMenuConfig {
   /** The menu items. */
   menu: MenuItem[] | (() => MenuItem[]);
+  /** Optional timing overrides (submenu hover/close delays). Long-press is configured via bind options. */
+  timing?: TimingConfig;
   /** The configuration for the submenu arrow. */
   submenuArrow?: boolean | SubmenuArrowConfig;
   /** Default configuration for the loading spinner. Overridable per item via loadingIcon, loadingSize, loadingSpeed. */
@@ -536,10 +543,8 @@ export interface ContextMenuState {
   isOpen: boolean;
   /** The last focus target. */
   lastFocusTarget: HTMLElement | null;
-  /** The timeout for the leave animation. */
-  leaveTimeout: ReturnType<typeof setTimeout> | null;
-  /** The transition handler for the leave animation. */
-  leaveTransitionHandler: (() => void) | null;
+  /** Cancel function for the current leave animation, if any. */
+  leaveAnimationCancel?: () => void;
   /** The open submenus. */
   openSubmenus: Array<{ panel: HTMLElement; trigger: HTMLElement }>;
   /** The timer for the submenu hover. */
@@ -598,8 +603,6 @@ export interface ContextMenuState {
   makeHoverFocusHandler: (menuEl: HTMLElement) => (el: HTMLElement) => void;
   /** The function to enter the menu item. */
   onEnterMenuItem: (el: HTMLElement) => void;
-  /** The function to trigger the submenu. */
-  triggerSubmenu: (sub: MenuItemSubmenu, triggerEl: HTMLElement) => void;
   /** The keydown handler. */
-  _keydownHandler: (e: KeyboardEvent) => void;
+  keydownHandler: (e: KeyboardEvent) => void;
 }
