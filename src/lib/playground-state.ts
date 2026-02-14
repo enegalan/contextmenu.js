@@ -256,7 +256,7 @@ export function getPresetState(preset: PlaygroundPresetKey): Partial<PlaygroundS
           { id: "a2", type: "separator" },
           { id: "a3", type: "label", label: "Section" },
           { id: "a4", type: "item", label: "Another action" },
-          { id: "a5", type: "link", label: "Documentation", href: "https://github.com/egalan/contextmenu.js", target: "_blank", rel: "noopener noreferrer" },
+          { id: "a5", type: "link", label: "Documentation", href: "https://github.com/enegalan/contextmenu.js", target: "_blank", rel: "noopener noreferrer" },
           { id: "a6", type: "separator" },
           { id: "a7", type: "checkbox", label: "Toggle option", checked: true },
           { id: "a8", type: "radio", name: "choice", label: "Option A", value: "a", checked: true },
@@ -346,7 +346,7 @@ export function getPresetState(preset: PlaygroundPresetKey): Partial<PlaygroundS
           { id: "l2", type: "item", label: "Paste", shortcut: "Ctrl+V" },
           { id: "l3", type: "separator" },
           { id: "l4", type: "link", label: "Docs", href: "https://contextmenujs.vercel.app/docs/introduction", target: "_blank", rel: "noopener noreferrer" },
-          { id: "l5", type: "link", label: "GitHub", href: "https://github.com/egalan/contextmenu.js", target: "_blank", rel: "noopener noreferrer" },
+          { id: "l5", type: "link", label: "GitHub", href: "https://github.com/enegalan/contextmenu.js", target: "_blank", rel: "noopener noreferrer" },
         ],
         useOpenAtElementButton: true,
       };

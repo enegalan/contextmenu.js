@@ -14,7 +14,7 @@ const mainNav = [
   { label: "Examples", href: "/examples/basic-menu" },
 ];
 
-const GITHUB_URL = "https://github.com/egalan/contextmenu.js";
+const GITHUB_URL = "https://github.com/enegalan/contextmenu.js";
 
 const examplesSection = { title: "Examples", items: examplesNavItems };
 const allDocSections = [...docsNavSections, examplesSection];
