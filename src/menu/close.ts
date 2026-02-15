@@ -1,20 +1,94 @@
-import type { CloseContext, ContextMenuState } from "../lib/types.js";
-import { ROOT } from "../lib/constants.js";
+import type { AnimationConfig, CloseContext, ContextMenuInstanceState } from "../lib/types.js";
+import { DEFAULT_LEAVE_MS, LEAVE_ANIMATION_SAFETY_MS, ROOT } from "../lib/constants.js";
 import { OPEN_MENU_INSTANCES } from "../lib/instances.js";
-import { setStyles } from "../utils/index.js";
-import { getLeaveDurationMs, runAfterLeaveAnimation } from "./animation.js";
-import { enableScrollLock, disableScrollLock } from "./scroll-lock.js";
+import { addClasses, removeClasses, setStyles } from "../utils/index.js";
 import { closeSubmenuWithAnimation } from "./submenu.js";
+
+/**
+ * Gets the leave duration in milliseconds.
+ * @param animation - The animation configuration.
+ * @returns The leave duration in milliseconds.
+ */
+export function getLeaveDurationMs(animation: AnimationConfig | undefined): number {
+  if (animation?.disabled) return 0;
+  const raw = animation?.leave ?? DEFAULT_LEAVE_MS;
+  return typeof raw === "number" ? raw : raw.duration;
+}
+
+/**
+ * Runs the after leave animation.
+ * @param panel - The panel to run the animation on.
+ * @param leaveMs - The leave duration in milliseconds.
+ * @param onEnd - The function to call when the animation ends.
+ * @returns The function to cancel the animation.
+ */
+export function runAfterLeaveAnimation(
+  panel: HTMLElement,
+  leaveMs: number,
+  onEnd: () => void
+): { cancel(): void } {
+  let done = false;
+  let t: ReturnType<typeof setTimeout>;
+  const finish = (): void => {
+    if (done) return;
+    done = true;
+    clearTimeout(t);
+    panel.removeEventListener("transitionend", finish);
+    onEnd();
+  };
+  panel.addEventListener("transitionend", finish, { once: true });
+  t = setTimeout(finish, leaveMs + LEAVE_ANIMATION_SAFETY_MS);
+  return {
+    cancel(): void {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      panel.removeEventListener("transitionend", finish);
+    },
+  };
+}
+
+/**
+ * Enables the scroll lock.
+ * @param state - The state of the context menu.
+ * @returns The function to enable the scroll lock.
+ */
+export function enableScrollLock(state: ContextMenuInstanceState): void {
+  if (state.scrollLockHandler || state.currentConfig.lockScrollOutside === false) return;
+  const handler = (event: WheelEvent | TouchEvent): void => {
+    const target = event.target as Node | null;
+    if (!target) return;
+    if (state.wrapper.contains(target)) return;
+    if ("preventDefault" in event) event.preventDefault();
+  };
+  state.scrollLockHandler = handler;
+  const listener = handler as unknown as EventListener;
+  document.addEventListener("wheel", listener, { passive: false, capture: true });
+  document.addEventListener("touchmove", listener, { passive: false, capture: true });
+}
+
+/**
+ * Disables the scroll lock.
+ * @param state - The state of the context menu.
+ * @returns The function to disable the scroll lock.
+ */
+export function disableScrollLock(state: ContextMenuInstanceState): void {
+  if (!state.scrollLockHandler) return;
+  const listener = state.scrollLockHandler as unknown as EventListener;
+  document.removeEventListener("wheel", listener, true);
+  document.removeEventListener("touchmove", listener, true);
+  state.scrollLockHandler = null;
+}
 
 /**
  * Cancels the leave animation.
  * @param state - The state of the context menu.
  * @returns The function to cancel the leave animation.
  */
-export function cancelLeaveAnimation(state: ContextMenuState): void {
+export function cancelLeaveAnimation(state: ContextMenuInstanceState): void {
   state.leaveAnimationCancel?.();
   state.leaveAnimationCancel = undefined;
-  state.root.classList.remove(ROOT.LEAVE_CLASS);
+  removeClasses(state.root, ROOT.LEAVE_CLASS);
 }
 
 /**
@@ -22,7 +96,7 @@ export function cancelLeaveAnimation(state: ContextMenuState): void {
  * @param state - The state of the context menu.
  * @returns The promise to resolve the close.
  */
-export function realClose(state: ContextMenuState): Promise<void> {
+export function realClose(state: ContextMenuInstanceState): Promise<void> {
   return new Promise((resolve) => {
     (async () => {
       disableScrollLock(state);
@@ -73,7 +147,7 @@ export function realClose(state: ContextMenuState): Promise<void> {
  * @param state - The state of the context menu.
  * @returns The function to cancel the leave animation.
  */
-function _onFullyClosed(state: ContextMenuState): void {
+function _onFullyClosed(state: ContextMenuInstanceState): void {
   OPEN_MENU_INSTANCES.delete(state.self);
   state.openPromiseResolve?.(state.lastSelectedItem);
   state.openPromiseResolve = null;
@@ -87,16 +161,15 @@ function _onFullyClosed(state: ContextMenuState): void {
  * @param state - The state of the context menu.
  * @returns The function to cancel the leave animation.
  */
-function _performRootClose(state: ContextMenuState): void {
+function _performRootClose(state: ContextMenuInstanceState): void {
   const leaveMs = getLeaveDurationMs(state.currentConfig.animation);
   const closeContext: CloseContext = { selectedItem: state.lastSelectedItem, anchor: state.lastAnchor };
-
   if (leaveMs > 0) {
-    state.root.classList.remove(ROOT.OPEN_CLASS);
-    state.root.classList.add(ROOT.LEAVE_CLASS);
+    removeClasses(state.root, ROOT.OPEN_CLASS);
+    addClasses(state.root, ROOT.LEAVE_CLASS);
     const onEnd = (): void => {
       state.leaveAnimationCancel = undefined;
-      state.root.classList.remove(ROOT.LEAVE_CLASS);
+      removeClasses(state.root, ROOT.LEAVE_CLASS);
       setStyles(state.root, { display: "none" });
       state.wrapper.remove();
       _onFullyClosed(state);

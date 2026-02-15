@@ -1,4 +1,4 @@
-import type { ContextMenuConfig, MenuItemVariant } from "../lib/types.js";
+import type { ContextMenuConfig, MenuItem, MenuItemAction, MenuItemLink, MenuItemSubmenu, MenuItemVariant, SubmenuChildren } from "../lib/types.js";
 import { ATTRS, CSS_VARS, ID_PREFIX } from "../lib/constants.js";
 
 /**
@@ -66,6 +66,18 @@ export function addClasses(el: HTMLElement, ...classes: (string | undefined | nu
 }
 
 /**
+ * Removes classes from an element.
+ * @param el - The element to remove classes from.
+ * @param classes - The classes to remove.
+ */
+export function removeClasses(el: HTMLElement, ...classes: (string | undefined | null | false)[]): void {
+  for (const c of classes) {
+    if (!c) continue;
+    el.classList.remove(...c.trim().split(/\s+/).filter(Boolean));
+  }
+}
+
+/**
  * Converts a size to CSS.
  * @param size - The size to convert.
  * @returns The CSS size.
@@ -129,7 +141,7 @@ export function applyAnimationConfig(root: HTMLElement, config: ContextMenuConfi
 export function applyThemeToElement(el: HTMLElement, theme: ContextMenuConfig["theme"]): void {
   const prevClass = el.getAttribute(ATTRS.THEME_CLASS);
   if (prevClass) {
-    prevClass.trim().split(/\s+/).forEach((c) => el.classList.remove(c));
+    removeClasses(el, prevClass);
   }
   el.removeAttribute(ATTRS.THEME_CLASS);
   if (theme?.class) {
@@ -143,4 +155,45 @@ export function applyThemeToElement(el: HTMLElement, theme: ContextMenuConfig["t
     }
     setStyles(el, tokens);
   }
+}
+
+/**
+ * Normalizes an item to standardize the item type.
+ * @param raw - The raw item to normalize.
+ * @returns Type-safe normalized item.
+ */
+export function normalizeItem(raw: MenuItem): MenuItem {
+  const item = { ...raw } as MenuItem;
+  if ("visible" in item && item.visible === undefined) (item as MenuItemAction).visible = true;
+  const hasExplicitType = "type" in raw && (raw as { type?: string }).type != null && (raw as { type?: string }).type !== "";
+  if (!hasExplicitType) {
+    if ("children" in item) (item as unknown as MenuItemSubmenu).type = "submenu";
+    else if ("href" in item && (item as MenuItemLink).href != null) (item as unknown as MenuItemLink).type = "link";
+    else if ("label" in item && !("children" in item)) (item as MenuItemAction).type = "item";
+  }
+  if ("children" in item && item.type === "submenu") {
+    const rawChildren = (item as MenuItemSubmenu).children;
+    if (Array.isArray(rawChildren)) {
+      (item as MenuItemSubmenu).children = rawChildren.map(normalizeItem);
+    }
+  }
+  return item;
+}
+
+/**
+ * Deep clones a menu recursively to get a new menu copy.
+ * @param items - The menu items to clone.
+ * @returns A new menu copy.
+ */
+export function deepCloneMenu(items: MenuItem[]): MenuItem[] {
+  return items.map((item) => {
+    const clone = { ...item } as MenuItem;
+    if ("children" in clone && clone.type === "submenu") {
+      const subChildren = (clone as MenuItemSubmenu).children;
+      (clone as MenuItemSubmenu).children = Array.isArray(subChildren)
+        ? deepCloneMenu(subChildren)
+        : subChildren;
+    }
+    return clone;
+  });
 }

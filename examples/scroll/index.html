@@ -198,8 +198,8 @@
             closeOnAction: false,
             onChange: ({ checked }) => {
               lockCheckbox.checked = checked;
-              menu.setLockScrollOutside(checked);
-              menu.updateMenu((items) =>
+              menu.setOptions({ lockScrollOutside: checked });
+              menu.setMenu((items) =>
                 items.map((item) =>
                   item.type === "checkbox" && item.id === ITEM_ID ? { ...item, checked } : item
                 )
@@ -217,7 +217,7 @@
 
     lockCheckbox.addEventListener("change", () => {
       const checked = lockCheckbox.checked;
-      menu.setLockScrollOutside(checked);
+      menu.setOptions({ lockScrollOutside: checked });
     });
   </script>
 </body>

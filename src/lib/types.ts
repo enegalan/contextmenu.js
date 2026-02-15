@@ -482,51 +482,51 @@ export interface BindOptions {
 }
 
 /**
- * Context menu instance.
+ * Options for updating the context menu at runtime.
  */
-export interface ContextMenuInstance {
-  /** Opens the menu at coordinates or at the event position. Returns a Promise that resolves with the selected item when the menu closes, or undefined if closed without selection. */
-  open(x?: number, y?: number): Promise<MenuItem | undefined>;
-  /** Opens the menu at the event position. */
-  open(event: MouseEvent): Promise<MenuItem | undefined>;
-  /** Closes the menu. Returns a Promise that resolves when the close animation finishes (or immediately if no animation). */
-  close(): Promise<void>;
-  /** The function to toggle the menu. */
-  toggle(x?: number, y?: number): void;
-  /** The function to open the menu at an element. */
-  openAtElement(element: HTMLElement, options?: OpenAtElementOptions): void;
-  /** The function to check if the menu is open. */
-  isOpen(): boolean;
-  /** Returns the anchor coordinates used for the last open, or null. */
-  getAnchor(): { x: number; y: number } | null;
-  /** The function to get the menu. */
-  getMenu(): MenuItem[];
-  /** The wrapper element (contains root menu and submenus). */
-  getRootElement(): HTMLElement;
-  /** Update the menu by applying an updater to the current menu. */
-  updateMenu(updater: (current: MenuItem[]) => MenuItem[]): void;
-  /** The function to bind the menu to an element. */
-  bind(element: HTMLElement, options?: BindOptions): void;
-  /** Removes bind from the given element, or from the currently bound element if no argument. */
-  unbind(element?: HTMLElement): void;
-  /** The function to destroy the menu. */
-  destroy(): void;
-  /** The function to set the menu. */
-  setMenu(menu: MenuItem[]): void;
-  /** Update theme at runtime; applies to root and open submenus if menu is open. */
-  setTheme(theme: ThemeConfig | undefined): void;
-  /** Update position config at runtime (used on next open). */
-  setPosition(position: PositionConfig | undefined): void;
-  /** Update animation config at runtime; applies to root and open submenus if menu is open. */
-  setAnimation(animation: AnimationConfig | undefined): void;
-  /** Update scroll lock behavior at runtime; when called while open it immediately enables/disables scroll lock outside the menu. */
-  setLockScrollOutside(lock: boolean): void;
+export interface ContextMenuInstanceOptions {
+  theme?: ThemeConfig | undefined;
+  position?: PositionConfig | undefined;
+  animation?: AnimationConfig | undefined;
+  lockScrollOutside?: boolean;
 }
 
 /**
- * Context menu state.
+ * Context menu state. Returned by getState().
  */
 export interface ContextMenuState {
+  isOpen: boolean;
+  anchor: { x: number; y: number } | null;
+  menu: MenuItem[];
+  rootElement: HTMLElement;
+}
+
+/**
+ * Context menu instance.
+ */
+export interface ContextMenuInstance {
+  /** Opens the menu. No args: use getAnchor from config or (0,0). (x, y): open at coords. (event): open at event. (element, options?): open at element with placement. Returns a Promise that resolves with the selected item when the menu closes, or undefined if closed without selection. */
+  open(xOrEventOrElement?: number | MouseEvent | HTMLElement, yOrOptions?: number | OpenAtElementOptions): Promise<MenuItem | undefined>;
+  /** Closes the menu. Returns a Promise that resolves when the close animation finishes (or immediately if no animation). */
+  close(): Promise<void>;
+  /** Open if closed, close if open. Optional (x, y) for open. */
+  toggle(x?: number, y?: number): void;
+  /** Returns current state: isOpen, anchor, menu (copy), rootElement. */
+  getState(): ContextMenuState;
+  /** Set menu (array) or update with a function (current) => newItems. */
+  setMenu(menuOrUpdater: MenuItem[] | ((current: MenuItem[]) => MenuItem[])): void;
+  /** Bind to an element (right-click / long-press). Call with no args or bind(null) to unbind. */
+  bind(element?: HTMLElement | null, options?: BindOptions): void;
+  /** Remove menu and all listeners. */
+  destroy(): void;
+  /** Update theme, position, animation, or scroll lock at runtime. Only provided keys are applied. */
+  setOptions(options: ContextMenuInstanceOptions): void;
+}
+
+/**
+ * Context menu instance state (not exposed to API).
+ */
+export interface ContextMenuInstanceState {
   /** The current configuration. */
   currentConfig: ContextMenuConfig;
   /** The current menu. */

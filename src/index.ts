@@ -6,6 +6,8 @@ export type {
   ContextMenuBindConfig,
   ContextMenuConfig,
   ContextMenuInstance,
+  ContextMenuInstanceOptions,
+  ContextMenuState,
   EventRegistry,
   MenuItem,
   MenuItemAction,

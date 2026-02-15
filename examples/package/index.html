@@ -242,7 +242,7 @@
             <p>Right-click or long-press here to open the context menu.</p>
             <div class="hint">
               Tip: use the button below to open the same menu anchored to an element with
-              <code>openAtElement</code>.
+              <code>open(element, options)</code>.
             </div>
           </div>
           <div class="actions">
@@ -553,7 +553,7 @@ import "@enegalan/contextmenu.js/dist/style.css";</code></pre>
       const btn = document.getElementById("btn");
       menu.bind(target);
       btn.onclick = () => {
-        menu.openAtElement(btn, { placement: "auto" });
+        menu.open(btn, { placement: "auto" });
       };
     }
 

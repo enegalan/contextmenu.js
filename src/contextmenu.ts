@@ -1,8 +1,122 @@
-import type { BindOptions,ContextMenuConfig, ContextMenuInstance, ContextMenuState, MenuItem, OpenAtElementOptions, OpenContext, OpenAtElementPlacement, SpinnerConfig } from "./lib/types.js";
+import type { BindOptions, ContextMenuConfig, ContextMenuInstance, ContextMenuInstanceOptions, ContextMenuInstanceState, MenuItem, OpenAtElementOptions, OpenContext, OpenAtElementPlacement, SpinnerConfig } from "./lib/types.js";
 import { ROOT, CLASSES, DEFAULT_LONG_PRESS_MS } from "./lib/constants.js";
 import { OPEN_MENU_INSTANCES } from "./lib/instances.js";
-import { getCoordsFromAnchor, getPortal, getViewportSize, isOpenMouseEvent, setAttrs, setStyles, applyThemeToElement, applyAnimationConfig, normalizeItem, deepCloneMenu, positionMenu } from "./utils/index.js";
+import { getCoordsFromAnchor, getPortal, getViewportSize, isOpenMouseEvent, setAttrs, setStyles, applyThemeToElement, applyAnimationConfig, normalizeItem, deepCloneMenu } from "./utils/index.js";
 import { createItemNode, type ItemNodeContext, normalizeSubmenuArrow, enableScrollLock, disableScrollLock, getFocusableItems, setRovingTabindex, clearRovingFocus, makeHoverFocusHandler, handleKeydown, openSubmenuPanel, scheduleSubmenuOpen, scheduleSubmenuClose, cancelSubmenuClose, closeSubmenuWithAnimation, onEnterMenuItem, cancelLeaveAnimation, realClose } from "./menu/index.js";
+
+/**
+ * Creates a context menu.
+ * @param config - The configuration for the context menu.
+ * @returns The context menu instance.
+ */
+export function createContextMenu(config: ContextMenuConfig): ContextMenuInstance {
+  const currentConfig = { ...config };
+  const rawMenu = typeof currentConfig.menu === "function" ? currentConfig.menu() : (currentConfig.menu ?? []);
+  const menu = rawMenu.map(normalizeItem);
+  const portal = getPortal(currentConfig.portal);
+  const wrapper = document.createElement("div");
+  wrapper.className = CLASSES.WRAPPER;
+  const root = document.createElement("div");
+  setAttrs(root, { role: "menu", "aria-orientation": "vertical", tabindex: "-1" });
+  root.className = ROOT.CLASS;
+  setStyles(root, { display: "none", ...(currentConfig.position?.zIndexBase != null ? { zIndex: String(currentConfig.position.zIndexBase) } : {}) });
+  applyThemeToElement(root, currentConfig.theme);
+  applyAnimationConfig(root, currentConfig);
+  wrapper.appendChild(root);
+
+  const state: ContextMenuInstanceState = {
+    currentConfig,
+    menu,
+    portal,
+    wrapper,
+    root,
+    submenuArrowConfig: normalizeSubmenuArrow(currentConfig.submenuArrow),
+    isOpen: false,
+    lastFocusTarget: null,
+    openSubmenus: [],
+    submenuHoverTimer: null,
+    outsideClickHandler: null,
+    resizeHandler: null,
+    scrollLockHandler: null,
+    boundElement: null,
+    boundContextmenu: null!,
+    boundTouchstart: null!,
+    boundTouchEndOrCancel: (): void => {},
+    longPressTimer: null,
+    longPressX: 0,
+    longPressY: 0,
+    lastAnchor: null,
+    lastSelectedItem: undefined,
+    openPromiseResolve: null,
+    closePromiseResolve: null,
+    self: { close: () => realClose(state) },
+    closeWithSelection: (selectedItem?) => {
+      if (selectedItem !== undefined) state.lastSelectedItem = selectedItem;
+      void realClose(state);
+    },
+    realClose: () => realClose(state),
+    openSubmenuPanel: (sub, triggerEl) => openSubmenuPanel(state, sub, triggerEl),
+    scheduleSubmenuOpen: (sub, triggerEl) => scheduleSubmenuOpen(state, sub, triggerEl),
+    scheduleSubmenuClose: (triggerEl) => scheduleSubmenuClose(state, triggerEl),
+    cancelSubmenuClose: () => cancelSubmenuClose(state),
+    closeSubmenuWithAnimation: (panel, trigger, options) => closeSubmenuWithAnimation(panel, trigger, state, options),
+    buildRootContent: () => _buildRootContent(state),
+    refreshContent: () => _refreshContent(state),
+    getSpinnerOptions: (it) => _getSpinnerOptions(state, it),
+    makeHoverFocusHandler: makeHoverFocusHandler,
+    onEnterMenuItem: (el) => onEnterMenuItem(state, el),
+    keydownHandler: (e: KeyboardEvent) => handleKeydown(state, e),
+  };
+
+  wrapper.addEventListener("keydown", state.keydownHandler);
+
+  const bindConfig = currentConfig.bind;
+  if (bindConfig != null) {
+    const el = bindConfig instanceof HTMLElement ? bindConfig : bindConfig.element;
+    _bind(state, el, bindConfig instanceof HTMLElement ? undefined : bindConfig.options);
+  }
+
+  return _createInstance(state);
+}
+
+
+/**
+ * @private
+ * Positions the menu.
+ * @param el - The element to position.
+ * @param x - The x coordinate.
+ * @param y - The y coordinate.
+ * @param config - The configuration.
+ */
+function _positionMenu(el: HTMLElement, x: number, y: number, config: ContextMenuConfig): void {
+  const pos = config.position ?? {};
+  const offsetX = pos.offset?.x ?? 0;
+  const offsetY = pos.offset?.y ?? 0;
+  const padding = pos.padding ?? 8;
+  const flip = pos.flip !== false;
+  const shift = pos.shift !== false;
+
+  setStyles(el, { display: "" });
+  el.getClientRects();
+  const rect = el.getBoundingClientRect();
+  const { vw, vh } = getViewportSize();
+
+  let left = x + offsetX;
+  let top = y + offsetY;
+
+  if (flip) {
+    if (top + rect.height > vh - padding) top = y - rect.height - offsetY;
+    if (left + rect.width > vw - padding) left = x - rect.width - offsetX;
+    if (left < padding) left = padding;
+    if (top < padding) top = padding;
+  }
+  if (shift) {
+    left = Math.max(padding, Math.min(vw - rect.width - padding, left));
+    top = Math.max(padding, Math.min(vh - rect.height - padding, top));
+  }
+
+  setStyles(el, { left: `${left}px`, top: `${top}px` });
+}
 
 /**
  * @private
@@ -11,7 +125,7 @@ import { createItemNode, type ItemNodeContext, normalizeSubmenuArrow, enableScro
  * @param it - The item to get the spinner options for.
  * @returns The spinner options.
  */
-function _getSpinnerOptions(state: ContextMenuState, it: MenuItem): SpinnerConfig {
+function _getSpinnerOptions(state: ContextMenuInstanceState, it: MenuItem): SpinnerConfig {
   const base = state.currentConfig.spinner ?? {};
   if (!it || typeof it !== "object") return base;
   const overrides: Partial<SpinnerConfig> = {};
@@ -27,7 +141,7 @@ function _getSpinnerOptions(state: ContextMenuState, it: MenuItem): SpinnerConfi
  * Builds the root content.
  * @param state - The state of the context menu.
  */
-function _buildRootContent(state: ContextMenuState): void {
+function _buildRootContent(state: ContextMenuInstanceState): void {
   const itemContext: ItemNodeContext = {
     close: state.closeWithSelection,
     openSubmenuPanel: state.openSubmenuPanel,
@@ -59,7 +173,7 @@ function _buildRootContent(state: ContextMenuState): void {
  * @param y - The y to open the menu at.
  * @returns The promise to resolve the open.
  */
-function _openImpl(state: ContextMenuState, xOrEvent?: number | MouseEvent, y?: number): Promise<MenuItem | undefined> {
+function _openImpl(state: ContextMenuInstanceState, xOrEvent?: number | MouseEvent, y?: number): Promise<MenuItem | undefined> {
   return new Promise((resolve) => {
     state.openPromiseResolve = resolve;
     (async () => {
@@ -115,7 +229,7 @@ function _openImpl(state: ContextMenuState, xOrEvent?: number | MouseEvent, y?: 
         state.resizeHandler = (): void => void state.realClose();
         window.addEventListener("resize", state.resizeHandler);
       }
-      positionMenu(state.root, xCoord, yCoord, state.currentConfig);
+      _positionMenu(state.root, xCoord, yCoord, state.currentConfig);
       setStyles(state.root, { display: "" });
 
       const applyOpenState = (): void => {
@@ -140,7 +254,7 @@ function _openImpl(state: ContextMenuState, xOrEvent?: number | MouseEvent, y?: 
  * Clears the long press timer.
  * @param state - The state of the context menu.
  */
-function _clearLongPressTimer(state: ContextMenuState): void {
+function _clearLongPressTimer(state: ContextMenuInstanceState): void {
   if (!state.longPressTimer) return;
   clearTimeout(state.longPressTimer);
   state.longPressTimer = null;
@@ -152,7 +266,7 @@ function _clearLongPressTimer(state: ContextMenuState): void {
  * @param state - The state of the context menu.
  * @param el - The element to unbind the menu from.
  */
-function _unbind(state: ContextMenuState, el?: HTMLElement): void {
+function _unbind(state: ContextMenuInstanceState, el?: HTMLElement): void {
   if (el != null && state.boundElement !== el) return;
   if (!state.boundElement) return;
   _clearLongPressTimer(state);
@@ -172,7 +286,7 @@ function _unbind(state: ContextMenuState, el?: HTMLElement): void {
  * @param el - The element to bind the menu to.
  * @param options - The options to bind the menu with.
  */
-function _bind(state: ContextMenuState, el: HTMLElement, options?: BindOptions): void {
+function _bind(state: ContextMenuInstanceState, el: HTMLElement, options?: BindOptions): void {
   _unbind(state);
   state.boundContextmenu = (e: MouseEvent): void => {
     e.preventDefault();
@@ -202,7 +316,7 @@ function _bind(state: ContextMenuState, el: HTMLElement, options?: BindOptions):
  * Destroys the menu.
  * @param state - The state of the context menu.
  */
-function _destroy(state: ContextMenuState): void {
+function _destroy(state: ContextMenuInstanceState): void {
   _unbind(state);
   if (state.outsideClickHandler) {
     document.removeEventListener("mousedown", state.outsideClickHandler, true);
@@ -225,56 +339,36 @@ function _destroy(state: ContextMenuState): void {
  * @param state - The state of the context menu.
  * @param newMenu - The new menu to set.
  */
-function _setMenu(state: ContextMenuState, newMenu: MenuItem[]): void {
+function _setMenu(state: ContextMenuInstanceState, newMenu: MenuItem[]): void {
   state.menu = newMenu.map(normalizeItem);
   if (state.isOpen) state.buildRootContent();
 }
 
 /**
  * @private
- * Sets the theme.
+ * Sets the options.
  * @param state - The state of the context menu.
- * @param theme - The theme to set.
+ * @param options - The options to set.
  */
-function _setTheme(state: ContextMenuState, theme: ContextMenuConfig["theme"]): void {
-  state.currentConfig.theme = theme;
-  applyThemeToElement(state.root, theme);
-  for (const { panel } of state.openSubmenus) applyThemeToElement(panel, theme);
-}
-
-/**
- * @private
- * Sets the position.
- * @param state - The state of the context menu.
- * @param position - The position to set.
- */
-function _setPosition(state: ContextMenuState, position: ContextMenuConfig["position"]): void {
-  state.currentConfig.position = position;
-}
-
-/**
- * @private
- * Sets the animation.
- * @param state - The state of the context menu.
- * @param animation - The animation to set.
- */
-function _setAnimation(state: ContextMenuState, animation: ContextMenuConfig["animation"]): void {
-  state.currentConfig.animation = animation;
-  applyAnimationConfig(state.root, state.currentConfig);
-  for (const { panel } of state.openSubmenus) applyAnimationConfig(panel, state.currentConfig);
-}
-
-/**
- * @private
- * Sets the lock scroll outside.
- * @param state - The state of the context menu.
- * @param lock - The lock to set.
- */
-function _setLockScrollOutside(state: ContextMenuState, lock: boolean): void {
-  state.currentConfig.lockScrollOutside = lock;
-  if (!state.isOpen) return;
-  if (lock) enableScrollLock(state);
-  else disableScrollLock(state);
+function _setOptions(state: ContextMenuInstanceState, options: ContextMenuInstanceOptions): void {
+  if (options.theme !== undefined) {
+    state.currentConfig.theme = options.theme;
+    applyThemeToElement(state.root, options.theme);
+    for (const { panel } of state.openSubmenus) applyThemeToElement(panel, options.theme);
+  }
+  if (options.position !== undefined) state.currentConfig.position = options.position;
+  if (options.animation !== undefined) {
+    state.currentConfig.animation = options.animation;
+    applyAnimationConfig(state.root, state.currentConfig);
+    for (const { panel } of state.openSubmenus) applyAnimationConfig(panel, state.currentConfig);
+  }
+  if (options.lockScrollOutside !== undefined) {
+    state.currentConfig.lockScrollOutside = options.lockScrollOutside;
+    if (state.isOpen) {
+      if (options.lockScrollOutside) enableScrollLock(state);
+      else disableScrollLock(state);
+    }
+  }
 }
 
 /**
@@ -282,7 +376,7 @@ function _setLockScrollOutside(state: ContextMenuState, lock: boolean): void {
  * Refreshes the content.
  * @param state - The state of the context menu.
  */
-function _refreshContent(state: ContextMenuState): void {
+function _refreshContent(state: ContextMenuInstanceState): void {
   if (!state.isOpen || typeof state.currentConfig.menu !== "function") return;
   state.menu = state.currentConfig.menu().map(normalizeItem);
   state.buildRootContent();
@@ -294,8 +388,9 @@ function _refreshContent(state: ContextMenuState): void {
  * @param state - The state of the context menu.
  * @param element - The element to open the menu at.
  * @param options - The options to open the menu at.
+ * @returns The promise to resolve the open.
  */
-function _openAtElement(state: ContextMenuState, element: HTMLElement, options?: OpenAtElementOptions): void {
+function _openAtElement(state: ContextMenuInstanceState, element: HTMLElement, options?: OpenAtElementOptions): Promise<MenuItem | undefined> {
   const offset = options?.offset ?? { x: 0, y: 0 };
   const rect = element.getBoundingClientRect();
   let placement: OpenAtElementPlacement = options?.placement ?? "bottom-start";
@@ -324,7 +419,7 @@ function _openAtElement(state: ContextMenuState, element: HTMLElement, options?:
     "right-end": { x: rect.right, y: rect.bottom },
   };
   const { x, y } = PLACEMENT_COORDS[placement as Exclude<OpenAtElementPlacement, "auto">] ?? PLACEMENT_COORDS["bottom-start"];
-  _openImpl(state, x + offset.x, y + offset.y);
+  return _openImpl(state, x + offset.x, y + offset.y);
 }
 
 /**
@@ -333,102 +428,34 @@ function _openAtElement(state: ContextMenuState, element: HTMLElement, options?:
  * @param state - The state of the context menu.
  * @returns The instance of the menu.
  */
-function _createInstance(state: ContextMenuState): ContextMenuInstance {
+function _createInstance(state: ContextMenuInstanceState): ContextMenuInstance {
   return {
-    open: (xOrEvent?: number | MouseEvent, y?: number) => _openImpl(state, xOrEvent, y),
+    open(xOrEventOrElement?: number | MouseEvent | HTMLElement, yOrOptions?: number | OpenAtElementOptions): Promise<MenuItem | undefined> {
+      if (xOrEventOrElement === undefined && yOrOptions === undefined) return _openImpl(state);
+      if (xOrEventOrElement instanceof HTMLElement) return _openAtElement(state, xOrEventOrElement, yOrOptions as OpenAtElementOptions | undefined);
+      if (isOpenMouseEvent(xOrEventOrElement)) return _openImpl(state, xOrEventOrElement);
+      return _openImpl(state, xOrEventOrElement as number, yOrOptions as number | undefined);
+    },
     close: () => state.realClose(),
     toggle(x?, y?) {
       if (state.isOpen) void state.realClose();
       else void _openImpl(state, x ?? 0, y ?? 0);
     },
-    openAtElement: (element, options?) => _openAtElement(state, element, options),
-    isOpen: () => state.isOpen,
-    getAnchor: () => state.lastAnchor,
-    getMenu: () => deepCloneMenu(state.menu),
-    getRootElement: () => state.wrapper,
-    updateMenu: (updater) => _setMenu(state, updater(deepCloneMenu(state.menu))),
-    bind: (el, options?) => _bind(state, el, options),
-    unbind: (el?) => _unbind(state, el),
-    destroy: () => _destroy(state),
-    setMenu: (newMenu) => _setMenu(state, newMenu),
-    setTheme: (theme) => _setTheme(state, theme),
-    setPosition: (position) => _setPosition(state, position),
-    setAnimation: (animation) => _setAnimation(state, animation),
-    setLockScrollOutside: (lock) => _setLockScrollOutside(state, lock),
-  };
-}
-
-/**
- * Creates a context menu.
- * @param config - The configuration for the context menu.
- * @returns The context menu instance.
- */
-export function createContextMenu(config: ContextMenuConfig): ContextMenuInstance {
-  const currentConfig = { ...config };
-  const rawMenu = typeof currentConfig.menu === "function" ? currentConfig.menu() : (currentConfig.menu ?? []);
-  const menu = rawMenu.map(normalizeItem);
-  const portal = getPortal(currentConfig.portal);
-  const wrapper = document.createElement("div");
-  wrapper.className = CLASSES.WRAPPER;
-  const root = document.createElement("div");
-  setAttrs(root, { role: "menu", "aria-orientation": "vertical", tabindex: "-1" });
-  root.className = ROOT.CLASS;
-  setStyles(root, { display: "none", ...(currentConfig.position?.zIndexBase != null ? { zIndex: String(currentConfig.position.zIndexBase) } : {}) });
-  applyThemeToElement(root, currentConfig.theme);
-  applyAnimationConfig(root, currentConfig);
-  wrapper.appendChild(root);
-
-  const state: ContextMenuState = {
-    currentConfig,
-    menu,
-    portal,
-    wrapper,
-    root,
-    submenuArrowConfig: normalizeSubmenuArrow(currentConfig.submenuArrow),
-    isOpen: false,
-    lastFocusTarget: null,
-    openSubmenus: [],
-    submenuHoverTimer: null,
-    outsideClickHandler: null,
-    resizeHandler: null,
-    scrollLockHandler: null,
-    boundElement: null,
-    boundContextmenu: null!,
-    boundTouchstart: null!,
-    boundTouchEndOrCancel: (): void => {},
-    longPressTimer: null,
-    longPressX: 0,
-    longPressY: 0,
-    lastAnchor: null,
-    lastSelectedItem: undefined,
-    openPromiseResolve: null,
-    closePromiseResolve: null,
-    self: { close: () => realClose(state) },
-    closeWithSelection: (selectedItem?) => {
-      if (selectedItem !== undefined) state.lastSelectedItem = selectedItem;
-      void realClose(state);
+    getState: () => ({
+      isOpen: state.isOpen,
+      anchor: state.lastAnchor,
+      menu: deepCloneMenu(state.menu),
+      rootElement: state.wrapper,
+    }),
+    setMenu(menuOrUpdater) {
+      if (typeof menuOrUpdater === "function") _setMenu(state, menuOrUpdater(deepCloneMenu(state.menu)));
+      else _setMenu(state, menuOrUpdater);
     },
-    realClose: () => realClose(state),
-    openSubmenuPanel: (sub, triggerEl) => openSubmenuPanel(state, sub, triggerEl),
-    scheduleSubmenuOpen: (sub, triggerEl) => scheduleSubmenuOpen(state, sub, triggerEl),
-    scheduleSubmenuClose: (triggerEl) => scheduleSubmenuClose(state, triggerEl),
-    cancelSubmenuClose: () => cancelSubmenuClose(state),
-    closeSubmenuWithAnimation: (panel, trigger, options) => closeSubmenuWithAnimation(panel, trigger, state, options),
-    buildRootContent: () => _buildRootContent(state),
-    refreshContent: () => _refreshContent(state),
-    getSpinnerOptions: (it) => _getSpinnerOptions(state, it),
-    makeHoverFocusHandler: makeHoverFocusHandler,
-    onEnterMenuItem: (el) => onEnterMenuItem(state, el),
-    keydownHandler: (e: KeyboardEvent) => handleKeydown(state, e),
+    bind(el?, options?) {
+      if (el == null) _unbind(state);
+      else _bind(state, el, options);
+    },
+    destroy: () => _destroy(state),
+    setOptions: (options) => _setOptions(state, options),
   };
-
-  wrapper.addEventListener("keydown", state.keydownHandler);
-
-  const bindConfig = currentConfig.bind;
-  if (bindConfig != null) {
-    const el = bindConfig instanceof HTMLElement ? bindConfig : bindConfig.element;
-    _bind(state, el, bindConfig instanceof HTMLElement ? undefined : bindConfig.options);
-  }
-
-  return _createInstance(state);
 }

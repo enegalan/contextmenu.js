@@ -37,7 +37,7 @@ element.addEventListener("contextmenu", (e) => { e.preventDefault(); menu.open(e
 // Programmatic
 const selected = await menu.open(x, y);
 menu.close();
-menu.openAtElement(button, { placement: "bottom-start" });
+menu.open(button, { placement: "bottom-start" });
 ```
 
 ---
@@ -48,27 +48,19 @@ What you get from `createContextMenu(config)`:
 
 | Method | Description |
 |--------|-------------|
-| `open(x?, y?)` / `open(event)` | Show menu at coordinates or at the event position. Returns a `Promise<MenuItem \| undefined>` that resolves with the selected item when the menu closes, or `undefined` if closed without selection. |
-| `close()` | Close the menu. Returns a `Promise<void>` that resolves when the close animation finishes. |
-| `toggle(x?, y?)` | Open if closed, close if open. |
-| `openAtElement(el, options?)` | Show menu next to an element. `options.placement`: `"bottom-start"`, `"top-end"`, `"auto"`, etc. `options.offset`: `{ x, y }` in px. |
-| `isOpen()` | `true` if the menu is visible. |
-| `getAnchor()` | Returns `{ x, y }` of the last open anchor, or `null`. |
-| `getMenu()` | Copy of the current menu (array of items). |
-| `getRootElement()` | The wrapper DOM element (for tests or styling). |
-| `unbind(element?)` | Remove bind from the given element, or from the currently bound element if no argument. |
-| `setMenu(menu)` | Replace the menu. `menu` is an array of menu items. |
-| `updateMenu(updater)` | Change the menu from current state. `updater` is a function: `(currentItems) => newItems`. See example below. |
-| `setTheme(theme)` | Change theme at runtime. `theme`: `{ class?: string, tokens?: { bg: "...", fg: "..." } }` or `undefined` to clear. |
-| `setPosition(position)` | Change position config for next open. `position`: `{ offset?: { x, y }, padding?: number, flip?: boolean, shift?: boolean }`. |
-| `setAnimation(animation)` | Change animation at runtime. `animation`: `{ type?: "fade" | "slide", enter?, leave?, disabled? }` (times in ms). |
-| `bind(element, options?)` | Open menu on right-click / long-press. `options.longPressMs`: delay for long-press (default 500). |
+| `open(xOrEventOrElement?, yOrOptions?)` | Show menu. No args: use `getAnchor` from config or (0,0). `(x, y)`: at coords. `(event)`: at event. `(element, options?)`: next to element (`placement`, `offset`). Returns `Promise<MenuItem \| undefined>`. |
+| `close()` | Close the menu. Returns a `Promise<void>` when the close animation finishes. |
+| `toggle(x?, y?)` | Open if closed, close if open. Optional `(x, y)` for open. |
+| `getState()` | Returns `{ isOpen, anchor, menu, rootElement }` (menu is a copy). |
+| `setMenu(menuOrUpdater)` | Set menu (array) or update with a function `(current) => newItems`. |
+| `bind(element?, options?)` | Bind to element (right-click / long-press). Call `bind()` or `bind(null)` to unbind. `options.longPressMs`: delay (default 500). |
 | `destroy()` | Remove menu and all listeners. |
+| `setOptions(options)` | Update theme, position, animation, or `lockScrollOutside` at runtime. Only provided keys are applied. |
 
-**updateMenu example** — e.g. to persist a checkbox:
+**setMenu with updater** — e.g. persist a checkbox:
 
 ```js
-menu.updateMenu((current) =>
+menu.setMenu((current) =>
   current.map((item) =>
     item.type === "checkbox" && item.label === "Dark mode"
       ? { ...item, checked: !item.checked }
@@ -77,13 +69,13 @@ menu.updateMenu((current) =>
 );
 ```
 
-**setTheme / setPosition / setAnimation example** — same shape as in config:
+**setOptions example** — same shapes as in config:
 
 ```js
-menu.setTheme({ class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } });
-menu.setPosition({ padding: 12, zIndexBase: 10000, submenuZIndexStep: 1 });
-menu.setAnimation({ enter: 150, leave: 100 });
-menu.setTheme(undefined); // clear theme
+menu.setOptions({ theme: { class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } } });
+menu.setOptions({ position: { padding: 12, zIndexBase: 10000, submenuZIndexStep: 1 } });
+menu.setOptions({ animation: { enter: 150, leave: 100 } });
+menu.setOptions({ theme: undefined }); // clear theme
 ```
 
 ---
@@ -101,7 +93,7 @@ What you pass to `createContextMenu({ ... })`:
 | `animation` | `{ type?, enter?, leave?, disabled? }` | `type`: `"fade"` (opacity + scale) or `"slide"` (opacity + translate). `enter` / `leave`: ms or `{ duration, easing }`. `disabled: true` = no animation. |
 | `position` | `{ offset?, padding?, flip?, shift?, zIndexBase?, submenuZIndexStep? }` | `offset`: `{ x, y }`. `padding`: viewport padding (px). `flip` / `shift`: keep menu in view. `zIndexBase`: base z-index for root menu. `submenuZIndexStep`: increment per submenu level so each stacks above the previous (0 = no increment). |
 | `portal` | `HTMLElement` or function | Where to mount the menu. Default: `document.body`. |
-| `getAnchor` | `() => { x, y }` or `DOMRect` | Used when `open()` is called with no arguments. |
+| `getAnchor` | `() => { x, y }` or `DOMRect` | Used when `open()` is called with no arguments (programmatic open at anchor). |
 | `lockScrollOutside` | `boolean` | When `true` (default), prevent page scroll outside the menu while it is open (wheel/touchmove outside the menu are blocked). Set to `false` to allow background scrolling. |
 | `submenuPlacement` | `"right"` \| `"left"` \| `"auto"` | Where to open submenus. `"auto"` uses RTL and viewport space (default). |
 | `bind` | `HTMLElement` or `{ element, options? }` | Same as calling `menu.bind(element, options)` after create. |
@@ -125,7 +117,7 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 
 - `label` (string), `icon?`, `shortcut?`, `badge?` (string, number, or `BadgeConfig`: `{ content?, className?, render? }` for full control), `disabled?`, `loading?`, `variant?`, `onClick?`, `closeOnAction?`, `render?`
 - `onClick` receives `{ item, nativeEvent, close }`. By default the menu closes on click; set `closeOnAction: false` to keep it open.
-- `loading`: when `true`, shows a spinner and blocks interaction (use `setMenu` / `updateMenu` to clear). Optional: `loadingIcon` (SVG or HTMLElement), `loadingSize` (px or CSS length), `loadingSpeed` (ms per rotation) to override config.
+- `loading`: when `true`, shows a spinner and blocks interaction (use `setMenu` to clear). Optional: `loadingIcon` (SVG or HTMLElement), `loadingSize` (px or CSS length), `loadingSpeed` (ms per rotation) to override config.
 - `variant`: `"default"` | `"danger"` | `"info"` | `"success"` | `"warning"` | `"muted"` (adds class e.g. `cm-item--danger`).
 
 **Link** — navigation item
@@ -147,7 +139,7 @@ Each entry in `menu` (or in a submenu’s `children`) is one of these.
 **Checkbox**
 
 - `type: "checkbox"`, `label`, `checked?`, `onChange?`, plus `leadingIcon?`, `shortcut?`, `icon?` / `uncheckedIcon?`, `disabled?`, `loading?`, `closeOnAction?`, `variant?`, `render?`
-- `onChange` receives `{ item, checked, nativeEvent, close }`. State is not stored; use a function menu or `setMenu` / `updateMenu` to persist.
+- `onChange` receives `{ item, checked, nativeEvent, close }`. State is not stored; use a function menu or `setMenu` (with updater) to persist.
 
 **Radio**
 
@@ -257,11 +249,13 @@ createContextMenu({
 });
 ```
 
-**Main variables:** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-menu-padding`, `--cm-menu-min-width`, `--cm-menu-max-height` (use `none` for no scroll), `--cm-item-radius`, `--cm-item-padding-x`, `--cm-item-padding-y`, `--cm-item-hover-bg`, `--cm-font-size`, `--cm-border`, `--cm-separator-bg`, `--cm-separator-margin`, `--cm-separator-height`, `--cm-disabled-opacity`, `--cm-z-index`, `--cm-spinner-size`. **Shortcut:** `--cm-shortcut-font-size`, `--cm-shortcut-opacity`, `--cm-shortcut-icon-size` (size of each shortcut icon, default `1em`). **Badge:** `--cm-badge-font-size`, `--cm-badge-opacity`, `--cm-badge-padding`, `--cm-badge-border-radius`, `--cm-badge-box-shadow`, `--cm-badge-background`, `--cm-badge-border-width`, `--cm-badge-border-style`, `--cm-badge-border-color`. Variants: `.cm-item--danger`, `.cm-item--info`, `.cm-item--success`, `.cm-item--warning`, `.cm-item--muted`.
+**Core variables (in default CSS):** `--cm-bg`, `--cm-fg`, `--cm-radius`, `--cm-shadow`, `--cm-font-size`, `--cm-z-index`, `--cm-border`, `--cm-menu-padding`, `--cm-item-padding`, `--cm-enter-duration`, `--cm-leave-duration`, `--cm-enter-easing`, `--cm-leave-easing`. Override these on `.cm-menu` or scope them with `theme.class` for per-menu styling.
 
-**Animation variables** (also set by config `animation` at runtime): `--cm-enter-duration` (default 120ms), `--cm-leave-duration` (default 80ms), `--cm-enter-easing` (default ease-out), `--cm-leave-easing` (default ease-in). Override in CSS or via the `animation` option. Use `animation.type: "slide"` for a slide-in effect instead of fade+scale.
+**Escape hatch:** For full control (badge, shortcut, spinner, variants), style the classes directly: `.cm-item-badge`, `.cm-shortcut`, `.cm-spinner`, `.cm-item--danger`, `.cm-item--info`, etc. Use `theme.class` when creating the menu to scope your own CSS (e.g. custom variables) to that menu.
 
-**Badge:** Items with `badge` (action, link, submenu) render a pill to the right. Use a string/number, or `BadgeConfig`: `{ content?, className? }` for text + extra classes, or `{ render: () => HTMLElement }` for a custom element. Style the default pill with `.cm-item-badge`.
+**Animation:** Config `animation` (or `setOptions({ animation })`) can set enter/leave times and `type: "slide"`. The same variables are applied via CSS when the lib sets them.
+
+**Badge:** Items with `badge` render a pill (`.cm-item-badge`). Use a string/number or `BadgeConfig`: `{ content?, className? }` or `{ render: () => HTMLElement }`. Style `.cm-item-badge` with your own CSS if you need more than the default look.
 
 ---
 
@@ -285,8 +279,8 @@ Build output is minified. Approximate sizes:
 
 | Asset | Size |
 |-------|------|
-| `dist/index.js` (ESM) | ~28 KB |
-| `dist/index.cjs` (CJS) | ~29 KB |
+| `dist/index.js` (ESM) | ~29 KB |
+| `dist/index.cjs` (CJS) | ~30 KB |
 | `dist/style.css` | ~8 KB (minified) |
 
 ---

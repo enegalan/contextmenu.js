@@ -1,4 +1,4 @@
-import type { ContextMenuState } from "../lib/types.js";
+import type { ContextMenuInstanceState } from "../lib/types.js";
 import { CLASSES, MENU_ROLE_SELECTOR } from "../lib/constants.js";
 import { getCmItem, getCmSubmenu } from "./item-nodes";
 import { shortcutMatchesEvent } from "../utils/index.js";
@@ -57,7 +57,7 @@ export function makeHoverFocusHandler(menuEl: HTMLElement): (el: HTMLElement) =>
  * @param state - The state of the context menu.
  * @param e - The keyboard event.
  */
-export function handleKeydown(state: ContextMenuState, e: KeyboardEvent): void {
+export function handleKeydown(state: ContextMenuInstanceState, e: KeyboardEvent): void {
   const target = e.target as HTMLElement;
   const menuEl = target.closest(MENU_ROLE_SELECTOR) as HTMLElement;
   if (!menuEl) return;

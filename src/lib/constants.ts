@@ -59,7 +59,6 @@ export const CSS_VARS = {
   LEAVE_DURATION: "--cm-leave-duration",
   ENTER_EASING: "--cm-enter-easing",
   LEAVE_EASING: "--cm-leave-easing",
-  SUBMENU_ARROW_SIZE: "--cm-submenu-arrow-size",
 } as const;
 
 const WIN_KEY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4875 4875" fill="currentColor" aria-hidden="true"><path xmlns="http://www.w3.org/2000/svg" fill="currentColor" d="M0 0h2311v2310H0zm2564 0h2311v2310H2564zM0 2564h2311v2311H0zm2564 0h2311v2311H2564"/></svg>';

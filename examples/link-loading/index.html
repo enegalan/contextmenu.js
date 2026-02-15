@@ -168,13 +168,13 @@
           <h2>Try links and loading</h2>
           <p>
             Right-click or long-press the area below. Change the loader style, size and speed to see how the
-            spinner reacts while the “Save” action runs.
+            spinner reacts while the "Save" action runs.
           </p>
           <div class="target" id="target">
             <p>Right-click or long-press here.</p>
           </div>
           <p class="note">
-            The two first items are links; the “Save” item simulates an async operation and shows a spinner.
+            The two first items are links; the "Save" item simulates an async operation and shows a spinner.
           </p>
         </div>
       </div>
@@ -183,11 +183,11 @@
         <h3>What this example shows</h3>
         <ul>
           <li><code>type: "link"</code> items with <code>href</code> and optional <code>target</code>/<code>rel</code>.</li>
-          <li>A “busy” action using <code>loading: true</code> and <code>updateMenu</code>.</li>
+          <li>A "busy" action using <code>loading: true</code> and <code>setMenu</code> (updater).</li>
           <li>Global spinner configuration via <code>config.spinner</code> plus per-item overrides.</li>
         </ul>
         <p class="tip">
-          Try changing size and speed before clicking “Save”. You can also inspect the console to see when the
+          Try changing size and speed before clicking "Save". You can also inspect the console to see when the
           async simulation starts and finishes.
         </p>
       </aside>
@@ -249,7 +249,7 @@
             loadingSpeed: Number(spinnerSpeedSelect.value),
             onClick: ({ close }) => {
               saving = true;
-              menu.updateMenu((items) =>
+              menu.setMenu((items) =>
                 items.map((it) =>
                   it.type === "item" && it.id === "save"
                     ? { ...it, loading: true }
@@ -258,7 +258,7 @@
               );
               setTimeout(() => {
                 saving = false;
-                menu.updateMenu((items) =>
+                menu.setMenu((items) =>
                   items.map((it) =>
                     it.type === "item" && it.id === "save"
                       ? { ...it, loading: false }

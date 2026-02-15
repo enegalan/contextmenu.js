@@ -1,7 +1,7 @@
-import type { ContextMenuState, MenuItem, MenuItemSubmenu } from "../lib/types.js";
+import type { ContextMenuInstanceState, MenuItem, MenuItemSubmenu } from "../lib/types.js";
 import { ROOT, CLASSES, SUBMENU_HOVER_DELAY_MS, SUBMENU_CLOSE_DELAY_MS, MENU_ROLE_SELECTOR } from "../lib/constants.js";
-import { setAttrs, setStyles, getViewportSize, applyThemeToElement, applyAnimationConfig, normalizeItem } from "../utils/index.js";
-import { getLeaveDurationMs, runAfterLeaveAnimation } from "./animation.js";
+import { setAttrs, setStyles, getViewportSize, applyThemeToElement, applyAnimationConfig, normalizeItem, removeClasses } from "../utils/index.js";
+import { getLeaveDurationMs, runAfterLeaveAnimation } from "./close.js";
 import { createItemNode, type ItemNodeContext } from "./item-nodes.js";
 import { clearRovingFocus } from "./keyboard.js";
 
@@ -16,7 +16,7 @@ import { clearRovingFocus } from "./keyboard.js";
 export function closeSubmenuWithAnimation(
   panel: HTMLElement,
   trigger: HTMLElement,
-  state: ContextMenuState,
+  state: ContextMenuInstanceState,
   options: { clearOpenSubmenu?: boolean; onDone?: () => void } = {}
 ): void {
   const { clearOpenSubmenu = true, onDone } = options;
@@ -25,7 +25,7 @@ export function closeSubmenuWithAnimation(
   const finish = (): void => {
     panel.remove();
     trigger.setAttribute("aria-expanded", "false");
-    trigger.classList.remove(ROOT.SUBMENU_OPEN_CLASS);
+    removeClasses(trigger, ROOT.SUBMENU_OPEN_CLASS);
     if (clearOpenSubmenu) {
       const idx = state.openSubmenus.findIndex((e) => e.panel === panel);
       if (idx >= 0) state.openSubmenus.splice(idx, 1);
@@ -38,7 +38,7 @@ export function closeSubmenuWithAnimation(
     return;
   }
 
-  panel.classList.remove(ROOT.OPEN_CLASS);
+  removeClasses(panel, ROOT.OPEN_CLASS);
   panel.classList.add(ROOT.LEAVE_CLASS);
   runAfterLeaveAnimation(panel, leaveMs, finish);
 }
@@ -50,7 +50,7 @@ export function closeSubmenuWithAnimation(
  * @param triggerEl - The trigger element to open the submenu.
  * @returns The function to schedule the submenu open.
  */
-export function scheduleSubmenuOpen(state: ContextMenuState, sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
+export function scheduleSubmenuOpen(state: ContextMenuInstanceState, sub: MenuItemSubmenu, triggerEl: HTMLElement): void {
   const top = state.openSubmenus[state.openSubmenus.length - 1];
   if (top && top.trigger === triggerEl) {
     triggerEl.focus();
@@ -71,7 +71,7 @@ export function scheduleSubmenuOpen(state: ContextMenuState, sub: MenuItemSubmen
  * @param triggerEl - The trigger element to close the submenu.
  * @returns The function to schedule the submenu close.
  */
-export function scheduleSubmenuClose(state: ContextMenuState, triggerEl: HTMLElement): void {
+export function scheduleSubmenuClose(state: ContextMenuInstanceState, triggerEl: HTMLElement): void {
   if (state.submenuHoverTimer) clearTimeout(state.submenuHoverTimer);
   state.submenuHoverTimer = setTimeout(() => {
     state.submenuHoverTimer = null;
@@ -89,7 +89,7 @@ export function scheduleSubmenuClose(state: ContextMenuState, triggerEl: HTMLEle
  * @param state - The state of the context menu.
  * @returns The function to cancel the submenu close.
  */
-export function cancelSubmenuClose(state: ContextMenuState): void {
+export function cancelSubmenuClose(state: ContextMenuInstanceState): void {
   if (state.submenuHoverTimer) clearTimeout(state.submenuHoverTimer);
   state.submenuHoverTimer = null;
 }
@@ -100,7 +100,7 @@ export function cancelSubmenuClose(state: ContextMenuState): void {
  * @param el - The element that was entered.
  * @returns The function to handle the menu item enter event.
  */
-export function onEnterMenuItem(state: ContextMenuState, el: HTMLElement): void {
+export function onEnterMenuItem(state: ContextMenuInstanceState, el: HTMLElement): void {
   if (state.openSubmenus.length === 0) return;
   state.cancelSubmenuClose();
   const menuEl = el.closest(MENU_ROLE_SELECTOR) as HTMLElement | null;
@@ -126,7 +126,7 @@ export function onEnterMenuItem(state: ContextMenuState, el: HTMLElement): void 
  * @param triggerEl - The trigger element to open the submenu.
  * @returns The function to open the submenu panel.
  */
-export async function openSubmenuPanel(state: ContextMenuState, sub: MenuItemSubmenu, triggerEl: HTMLElement): Promise<void> {
+export async function openSubmenuPanel(state: ContextMenuInstanceState, sub: MenuItemSubmenu, triggerEl: HTMLElement): Promise<void> {
   const containIndex = state.root.contains(triggerEl)
     ? -1
     : state.openSubmenus.findIndex((e) => e.panel.contains(triggerEl));
