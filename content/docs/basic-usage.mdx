@@ -63,15 +63,16 @@ The menu appears at the event coordinates.
 
 ## Opening and closing from code
 
-- **Open at coordinates** — `menu.open(x, y)` or `menu.open()`. With no arguments, the library uses the `getAnchor` config to get coordinates. Returns a Promise that resolves with the selected item when the menu closes (or `undefined` if closed without selection).
-- **Open next to an element** — `menu.openAtElement(button, { placement: "bottom-start", offset: { x: 0, y: 4 } })`. See [API reference](/docs/api-reference) for placement values.
+- **Open at coordinates** — `menu.open(x, y)` or `menu.open()`. With no arguments, the library uses the `getAnchor` config. Returns a Promise that resolves with the selected item when the menu closes (or `undefined` if closed without selection).
+- **Open next to an element** — `menu.open(button, { placement: "bottom-start", offset: { x: 0, y: 4 } })`. See [API reference](/docs/api-reference) for placement values.
 - **Close** — `menu.close()`. Returns a Promise that resolves when the close animation finishes.
-- **Check if open** — `menu.isOpen()`.
+- **State** — `menu.getState()` returns `{ isOpen, anchor, menu, rootElement }`.
 
 ```js
 const selected = await menu.open(200, 100);
 menu.close();
-menu.openAtElement(button, { placement: "bottom-start" });
+menu.open(button, { placement: "bottom-start" });
+const { isOpen } = menu.getState();
 ```
 
 ## Summary: what to use when
@@ -81,9 +82,9 @@ menu.openAtElement(button, { placement: "bottom-start" });
   rows={[
     ["Open on right-click / long-press on an element", "menu.bind(element)"],
     ["Open at pointer position from your handler", "menu.open(event) or menu.open(x, y)"],
-    ["Open next to a specific element", "menu.openAtElement(el, options)"],
+    ["Open next to a specific element", "menu.open(element, options)"],
     ["Close the menu", "menu.close()"],
-    ["Know if the menu is visible", "menu.isOpen()"],
+    ["Get open state, anchor, menu copy, root element", "menu.getState()"],
   ]}
 />
 

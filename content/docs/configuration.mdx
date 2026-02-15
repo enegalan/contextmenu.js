@@ -17,6 +17,7 @@ You configure the menu by passing options to `createContextMenu()`. This page co
     ["submenuPlacement", "right / left / auto", "Where submenus open", "auto"],
     ["getAnchor", "function or DOMRect", "Used when open() is called with no args", "—"],
     ["closeOnResize", "boolean", "Close menu on window resize", "false"],
+    ["lockScrollOutside", "boolean", "Prevent page scroll outside menu while open", "true"],
     ["shortcutIcons", "Record", "Custom icons for shortcut keys", "—"],
     ["platform", "mac / win / auto", "Override platform for shortcut display", "auto"],
   ]}
@@ -54,7 +55,7 @@ createContextMenu({
 });
 ```
 
-You can change position at runtime with `menu.setPosition(position)`.
+You can change position at runtime with `menu.setOptions({ position })`.
 
 ---
 
@@ -113,6 +114,12 @@ createContextMenu({
   closeOnResize: true,
 });
 ```
+
+---
+
+## lockScrollOutside
+
+When `true` (default), wheel and touchmove outside the menu are blocked so the page does not scroll while the menu is open. Set to `false` to allow background scrolling. Can be changed at runtime with `menu.setOptions({ lockScrollOutside: false })`.
 
 ---
 

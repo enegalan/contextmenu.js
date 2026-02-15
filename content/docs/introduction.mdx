@@ -25,7 +25,7 @@ title: Introduction
 Flow: **User** (right-click or long-press) → **bind or open** → **Position** (menu) → **Render** → **Action** (select or close).
 
 1. You create a menu with `createContextMenu({ menu: [...] })`.
-2. You either **bind** it to an element (so it opens on right-click/long-press) or call **open** / **openAtElement** from your own event handlers.
+2. You either **bind** it to an element (so it opens on right-click/long-press) or call **open** (with coords, event, or element + options) from your own event handlers.
 3. The library positions the menu (with optional flip/shift to stay in view), renders it (often in a portal), and handles selection and close.
 4. When the user picks an item or dismisses the menu, your callbacks run and the menu closes.
 

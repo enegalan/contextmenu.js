@@ -173,11 +173,11 @@ Action items can set **variant** to get an extra CSS class and often a different
 
 ## Runtime theme change
 
-Use `menu.setTheme(theme)` to switch theme after creation. Pass `undefined` to clear.
+Use `menu.setOptions({ theme })` to switch theme after creation. Pass `theme: undefined` to clear.
 
 ```js
-menu.setTheme({ class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } });
-menu.setTheme(undefined); // clear theme
+menu.setOptions({ theme: { class: "my-dark", tokens: { bg: "#1a1a1a", fg: "#eee" } } });
+menu.setOptions({ theme: undefined }); // clear theme
 ```
 
 <Callout type="tip" title="Dark theme example">

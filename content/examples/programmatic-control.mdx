@@ -8,20 +8,20 @@ Open and close the menu from code, and change its content, theme, or animation a
 
 ## What you'll see
 
-Right-click or long-press the demo area to open the menu with “Option A” and “Option B”. The same menu could be opened from your own code with `menu.open(x, y)` or `menu.openAtElement(button, { placement: "bottom-start" })`. You can call `menu.close()`, `menu.setMenu(...)`, `menu.setTheme(...)`, or `menu.setAnimation(...)` to control state without user interaction.
+Right-click or long-press the demo area to open the menu with “Option A” and “Option B”. The same menu could be opened from your own code with `menu.open(x, y)` or `menu.open(button, { placement: "bottom-start" })`. You can call `menu.close()`, `menu.setMenu(...)`, `menu.setOptions({ theme, position, animation })` to control state without user interaction.
 
 ## Key points
 
-- **open(x, y)** — Show the menu at coordinates. Returns a Promise that resolves with the selected item (or undefined if closed without selection).
-- **openAtElement(el, options)** — Show the menu next to an element; options include `placement` and `offset`.
-- **close()** — Close the menu; returns a Promise that resolves when the close animation finishes.
-- **setMenu / updateMenu** — Replace or update the menu items at runtime.
-- **setTheme / setAnimation** — Change theme or animation without recreating the menu.
+- **open(xOrEventOrElement?, yOrOptions?)** — Show the menu. No args, `(x, y)`, `(event)`, or `(element, options?)` with `placement` and `offset`. Returns a Promise with the selected item (or undefined).
+- **close()** — Close the menu; returns a Promise when the close animation finishes.
+- **getState()** — Returns `{ isOpen, anchor, menu, rootElement }`.
+- **setMenu(menuOrUpdater)** — Replace menu (array) or update with `(current) => newItems`.
+- **setOptions(options)** — Change theme, position, animation, or lockScrollOutside at runtime.
 
 <ExampleRunner preset="programmatic-control" />
 
 ## Related
 
-- [Basic usage — Opening and closing from code](/docs/basic-usage#opening-and-closing-from-code) — open, close, openAtElement.
+- [Basic usage — Opening and closing from code](/docs/basic-usage#opening-and-closing-from-code) — open, close, getState.
 - [API reference](/docs/api-reference) — All instance methods and config options.
 - [Configuration](/docs/configuration) — getAnchor, position, portal.

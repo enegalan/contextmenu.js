@@ -38,7 +38,7 @@ When the menu is open, pressing an item’s **shortcut** (e.g. Ctrl+C or Cmd+C) 
 
 **Roving tabindex** is used: only one item in the menu has `tabindex="0"` at a time; the rest have `tabindex="-1"`. Arrow keys move focus and update which item has `tabindex="0"`, so keyboard users can move through the list without tabbing through every item.
 
-When the menu closes, **focus returns to the trigger element** (the element that had focus when the menu opened, e.g. the bound element or the button you used with `openAtElement`). This keeps focus in a predictable place for keyboard and screen reader users.
+When the menu closes, **focus returns to the trigger element** (the element that had focus when the menu opened, e.g. the bound element or the button you used with `open(element, options)`). This keeps focus in a predictable place for keyboard and screen reader users.
 
 ## Screen readers
 
