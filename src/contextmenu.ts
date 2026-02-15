@@ -2,7 +2,7 @@ import type { BindOptions,ContextMenuConfig, ContextMenuInstance, ContextMenuSta
 import { ROOT, CLASSES, DEFAULT_LONG_PRESS_MS } from "./lib/constants.js";
 import { OPEN_MENU_INSTANCES } from "./lib/instances.js";
 import { getCoordsFromAnchor, getPortal, getViewportSize, isOpenMouseEvent, setAttrs, setStyles, applyThemeToElement, applyAnimationConfig, normalizeItem, deepCloneMenu, positionMenu } from "./utils/index.js";
-import { createItemNode, normalizeSubmenuArrow, enableScrollLock, disableScrollLock, getFocusableItems, setRovingTabindex, clearRovingFocus, makeHoverFocusHandler, handleKeydown, openSubmenuPanel, scheduleSubmenuOpen, scheduleSubmenuClose, cancelSubmenuClose, closeSubmenuWithAnimation, onEnterMenuItem, cancelLeaveAnimation, realClose } from "./menu/index.js";
+import { createItemNode, type ItemNodeContext, normalizeSubmenuArrow, enableScrollLock, disableScrollLock, getFocusableItems, setRovingTabindex, clearRovingFocus, makeHoverFocusHandler, handleKeydown, openSubmenuPanel, scheduleSubmenuOpen, scheduleSubmenuClose, cancelSubmenuClose, closeSubmenuWithAnimation, onEnterMenuItem, cancelLeaveAnimation, realClose } from "./menu/index.js";
 
 /**
  * @private
@@ -13,16 +13,13 @@ import { createItemNode, normalizeSubmenuArrow, enableScrollLock, disableScrollL
  */
 function _getSpinnerOptions(state: ContextMenuState, it: MenuItem): SpinnerConfig {
   const base = state.currentConfig.spinner ?? {};
-  const hasOverrides =
-    it && typeof it === "object" &&
-    ("loadingIcon" in it || "loadingSize" in it || "loadingSpeed" in it);
-  if (!hasOverrides) return base;
-  return {
-    ...base,
-    ...("loadingIcon" in it && it.loadingIcon !== undefined && { icon: it.loadingIcon }),
-    ...("loadingSize" in it && it.loadingSize !== undefined && { size: it.loadingSize }),
-    ...("loadingSpeed" in it && it.loadingSpeed !== undefined && { speed: it.loadingSpeed }),
-  };
+  if (!it || typeof it !== "object") return base;
+  const overrides: Partial<SpinnerConfig> = {};
+  if ("loadingIcon" in it && it.loadingIcon !== undefined) overrides.icon = it.loadingIcon;
+  if ("loadingSize" in it && it.loadingSize !== undefined) overrides.size = it.loadingSize;
+  if ("loadingSpeed" in it && it.loadingSpeed !== undefined) overrides.speed = it.loadingSpeed;
+  if (Object.keys(overrides).length === 0) return base;
+  return { ...base, ...overrides };
 }
 
 /**
@@ -31,9 +28,24 @@ function _getSpinnerOptions(state: ContextMenuState, it: MenuItem): SpinnerConfi
  * @param state - The state of the context menu.
  */
 function _buildRootContent(state: ContextMenuState): void {
+  const itemContext: ItemNodeContext = {
+    close: state.closeWithSelection,
+    openSubmenuPanel: state.openSubmenuPanel,
+    scheduleSubmenuOpen: state.scheduleSubmenuOpen,
+    scheduleSubmenuClose: state.scheduleSubmenuClose,
+    onHoverFocus: state.makeHoverFocusHandler(state.root),
+    onEnterParentItem: (el) => state.onEnterMenuItem(el),
+    submenuArrowConfig: state.submenuArrowConfig,
+    refreshContent: state.refreshContent,
+    onItemHover: (it, ev) => state.currentConfig.onItemHover?.({ item: it, nativeEvent: ev }),
+    getSpinnerOptions: state.getSpinnerOptions,
+    shortcutIcons: state.currentConfig.shortcutIcons,
+    platform: state.currentConfig.platform,
+    clearRovingFocus,
+  };
   const fragment = document.createDocumentFragment();
   state.menu.forEach((item) => {
-    const node = createItemNode(item, state.closeWithSelection, state.openSubmenuPanel, state.scheduleSubmenuOpen, state.scheduleSubmenuClose, state.makeHoverFocusHandler(state.root), (el) => state.onEnterMenuItem(el), state.submenuArrowConfig, state.refreshContent, (it, ev) => state.currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), state.getSpinnerOptions, state.currentConfig.shortcutIcons, state.currentConfig.platform, clearRovingFocus);
+    const node = createItemNode(item, itemContext);
     if (node) fragment.appendChild(node);
   });
   state.root.replaceChildren(fragment);
@@ -301,19 +313,17 @@ function _openAtElement(state: ContextMenuState, element: HTMLElement, options?:
     const startOrEnd = spaceEnd >= spaceStart ? (isRtl ? "end" : "start") : isRtl ? "start" : "end";
     placement = `${vertical}-${startOrEnd}` as OpenAtElementPlacement;
   }
-  let x: number;
-  let y: number;
-  switch (placement) {
-    case "bottom-start": x = rect.left; y = rect.bottom; break;
-    case "bottom-end": x = rect.right; y = rect.bottom; break;
-    case "top-start": x = rect.left; y = rect.top; break;
-    case "top-end": x = rect.right; y = rect.top; break;
-    case "left-start": x = rect.left; y = rect.top; break;
-    case "left-end": x = rect.left; y = rect.bottom; break;
-    case "right-start": x = rect.right; y = rect.top; break;
-    case "right-end": x = rect.right; y = rect.bottom; break;
-    default: x = rect.left; y = rect.bottom;
-  }
+  const PLACEMENT_COORDS: Record<Exclude<OpenAtElementPlacement, "auto">, { x: number; y: number }> = {
+    "bottom-start": { x: rect.left, y: rect.bottom },
+    "bottom-end": { x: rect.right, y: rect.bottom },
+    "top-start": { x: rect.left, y: rect.top },
+    "top-end": { x: rect.right, y: rect.top },
+    "left-start": { x: rect.left, y: rect.top },
+    "left-end": { x: rect.left, y: rect.bottom },
+    "right-start": { x: rect.right, y: rect.top },
+    "right-end": { x: rect.right, y: rect.bottom },
+  };
+  const { x, y } = PLACEMENT_COORDS[placement as Exclude<OpenAtElementPlacement, "auto">] ?? PLACEMENT_COORDS["bottom-start"];
   _openImpl(state, x + offset.x, y + offset.y);
 }
 
@@ -393,38 +403,25 @@ export function createContextMenu(config: ContextMenuConfig): ContextMenuInstanc
     lastSelectedItem: undefined,
     openPromiseResolve: null,
     closePromiseResolve: null,
-    self: null!,
-    closeWithSelection: null!,
-    realClose: null!,
-    openSubmenuPanel: null!,
-    scheduleSubmenuOpen: null!,
-    scheduleSubmenuClose: null!,
-    cancelSubmenuClose: null!,
-    closeSubmenuWithAnimation: null!,
-    buildRootContent: null!,
-    refreshContent: null!,
-    getSpinnerOptions: null!,
+    self: { close: () => realClose(state) },
+    closeWithSelection: (selectedItem?) => {
+      if (selectedItem !== undefined) state.lastSelectedItem = selectedItem;
+      void realClose(state);
+    },
+    realClose: () => realClose(state),
+    openSubmenuPanel: (sub, triggerEl) => openSubmenuPanel(state, sub, triggerEl),
+    scheduleSubmenuOpen: (sub, triggerEl) => scheduleSubmenuOpen(state, sub, triggerEl),
+    scheduleSubmenuClose: (triggerEl) => scheduleSubmenuClose(state, triggerEl),
+    cancelSubmenuClose: () => cancelSubmenuClose(state),
+    closeSubmenuWithAnimation: (panel, trigger, options) => closeSubmenuWithAnimation(panel, trigger, state, options),
+    buildRootContent: () => _buildRootContent(state),
+    refreshContent: () => _refreshContent(state),
+    getSpinnerOptions: (it) => _getSpinnerOptions(state, it),
     makeHoverFocusHandler: makeHoverFocusHandler,
-    onEnterMenuItem: null!,
-    keydownHandler: null!,
+    onEnterMenuItem: (el) => onEnterMenuItem(state, el),
+    keydownHandler: (e: KeyboardEvent) => handleKeydown(state, e),
   };
 
-  state.self = { close: () => realClose(state) };
-  state.closeWithSelection = (selectedItem?) => {
-    if (selectedItem !== undefined) state.lastSelectedItem = selectedItem;
-    void realClose(state);
-  };
-  state.realClose = () => realClose(state);
-  state.openSubmenuPanel = (sub, triggerEl) => openSubmenuPanel(state, sub, triggerEl);
-  state.scheduleSubmenuOpen = (sub, triggerEl) => scheduleSubmenuOpen(state, sub, triggerEl);
-  state.scheduleSubmenuClose = (triggerEl) => scheduleSubmenuClose(state, triggerEl);
-  state.cancelSubmenuClose = () => cancelSubmenuClose(state);
-  state.closeSubmenuWithAnimation = (panel, trigger, options) => closeSubmenuWithAnimation(panel, trigger, state, options);
-  state.buildRootContent = () => _buildRootContent(state);
-  state.refreshContent = () => _refreshContent(state);
-  state.getSpinnerOptions = (it) => _getSpinnerOptions(state, it);
-  state.onEnterMenuItem = (el) => onEnterMenuItem(state, el);
-  state.keydownHandler = (e: KeyboardEvent) => handleKeydown(state, e);
   wrapper.addEventListener("keydown", state.keydownHandler);
 
   const bindConfig = currentConfig.bind;

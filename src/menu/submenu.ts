@@ -1,8 +1,8 @@
 import type { ContextMenuState, MenuItem, MenuItemSubmenu } from "../lib/types.js";
 import { ROOT, CLASSES, SUBMENU_HOVER_DELAY_MS, SUBMENU_CLOSE_DELAY_MS, MENU_ROLE_SELECTOR } from "../lib/constants.js";
 import { setAttrs, setStyles, getViewportSize, applyThemeToElement, applyAnimationConfig, normalizeItem } from "../utils/index.js";
-import { runAfterLeaveAnimation } from "./animation.js";
-import { createItemNode } from "./item-nodes.js";
+import { getLeaveDurationMs, runAfterLeaveAnimation } from "./animation.js";
+import { createItemNode, type ItemNodeContext } from "./item-nodes.js";
 import { clearRovingFocus } from "./keyboard.js";
 
 /**
@@ -20,9 +20,7 @@ export function closeSubmenuWithAnimation(
   options: { clearOpenSubmenu?: boolean; onDone?: () => void } = {}
 ): void {
   const { clearOpenSubmenu = true, onDone } = options;
-  const anim = state.currentConfig.animation;
-  const rawLeave = anim?.leave ?? 80;
-  const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
+  const leaveMs = getLeaveDurationMs(state.currentConfig.animation);
 
   const finish = (): void => {
     panel.remove();
@@ -35,7 +33,7 @@ export function closeSubmenuWithAnimation(
     onDone?.();
   };
 
-  if (leaveMs <= 0 || anim?.disabled) {
+  if (leaveMs <= 0) {
     finish();
     return;
   }
@@ -129,15 +127,9 @@ export function onEnterMenuItem(state: ContextMenuState, el: HTMLElement): void 
  * @returns The function to open the submenu panel.
  */
 export async function openSubmenuPanel(state: ContextMenuState, sub: MenuItemSubmenu, triggerEl: HTMLElement): Promise<void> {
-  let containIndex = -1;
-  if (state.root.contains(triggerEl)) containIndex = -1;
-  else {
-    for (let i = 0; i < state.openSubmenus.length; i++) {
-      if (!state.openSubmenus[i].panel.contains(triggerEl)) continue;
-      containIndex = i;
-      break;
-    }
-  }
+  const containIndex = state.root.contains(triggerEl)
+    ? -1
+    : state.openSubmenus.findIndex((e) => e.panel.contains(triggerEl));
   for (let j = state.openSubmenus.length - 1; j > containIndex; j--) {
     const { panel: p, trigger: t } = state.openSubmenus[j];
     state.closeSubmenuWithAnimation(p, t, { clearOpenSubmenu: true });
@@ -154,9 +146,24 @@ export async function openSubmenuPanel(state: ContextMenuState, sub: MenuItemSub
   const base = state.currentConfig.position?.zIndexBase ?? 9999;
   if (step > 0) setStyles(panel, { zIndex: String(base + (state.openSubmenus.length + 1) * step) });
 
+  const itemContext: ItemNodeContext = {
+    close: state.closeWithSelection,
+    openSubmenuPanel: (subItem, el) => void state.openSubmenuPanel(subItem as MenuItemSubmenu, el),
+    scheduleSubmenuOpen: state.scheduleSubmenuOpen,
+    scheduleSubmenuClose: state.scheduleSubmenuClose,
+    onHoverFocus: state.makeHoverFocusHandler(panel),
+    onEnterParentItem: state.onEnterMenuItem,
+    submenuArrowConfig: state.submenuArrowConfig,
+    refreshContent: state.refreshContent,
+    onItemHover: (it, ev) => state.currentConfig.onItemHover?.({ item: it, nativeEvent: ev }),
+    getSpinnerOptions: state.getSpinnerOptions,
+    shortcutIcons: state.currentConfig.shortcutIcons,
+    platform: state.currentConfig.platform,
+    clearRovingFocus,
+  };
   const fragment = document.createDocumentFragment();
   resolvedChildren.forEach((child) => {
-    const node = createItemNode(child, state.closeWithSelection, (subItem, el) => void state.openSubmenuPanel(subItem as MenuItemSubmenu, el), state.scheduleSubmenuOpen, state.scheduleSubmenuClose, state.makeHoverFocusHandler(panel), state.onEnterMenuItem, state.submenuArrowConfig, state.refreshContent, (it, ev) => state.currentConfig.onItemHover?.({ item: it, nativeEvent: ev }), state.getSpinnerOptions, state.currentConfig.shortcutIcons, state.currentConfig.platform, clearRovingFocus);
+    const node = createItemNode(child, itemContext);
     if (node) fragment.appendChild(node);
   });
   panel.appendChild(fragment);

@@ -1,4 +1,14 @@
-import { LEAVE_ANIMATION_SAFETY_MS } from "../lib/constants.js";
+import type { AnimationConfig } from "../lib/types.js";
+import { DEFAULT_LEAVE_MS, LEAVE_ANIMATION_SAFETY_MS } from "../lib/constants.js";
+
+/**
+ * Returns the leave animation duration in ms. Returns 0 when animation is disabled.
+ */
+export function getLeaveDurationMs(animation: AnimationConfig | undefined): number {
+  if (animation?.disabled) return 0;
+  const raw = animation?.leave ?? DEFAULT_LEAVE_MS;
+  return typeof raw === "number" ? raw : raw.duration;
+}
 
 /**
  * Run a callback after the leave animation ends, either on transitionend or after a safety timeout.

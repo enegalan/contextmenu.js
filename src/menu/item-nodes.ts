@@ -34,40 +34,46 @@ export function normalizeSubmenuArrow(value: ContextMenuConfig["submenuArrow"]):
 }
 
 /**
+ * Context passed to createItemNode (close, submenu/open callbacks, theme/shortcut options, etc.).
+ */
+export interface ItemNodeContext {
+  close: (selectedItem?: MenuItem) => void;
+  openSubmenuPanel: (item: MenuItemSubmenu, el: HTMLElement) => void;
+  scheduleSubmenuOpen?: (sub: MenuItemSubmenu, el: HTMLElement) => void;
+  scheduleSubmenuClose?: (triggerEl: HTMLElement) => void;
+  onHoverFocus?: (el: HTMLElement) => void;
+  onEnterParentItem?: (el: HTMLElement) => void;
+  submenuArrowConfig?: SubmenuArrowConfig | null;
+  refreshContent?: () => void;
+  onItemHover?: (item: MenuItem, nativeEvent: MouseEvent | FocusEvent) => void;
+  getSpinnerOptions?: (item: MenuItem) => SpinnerConfig;
+  shortcutIcons?: Record<string, string | HTMLElement>;
+  platform?: "mac" | "win" | "auto";
+  clearRovingFocus?: (menuEl: HTMLElement | null) => void;
+}
+
+/**
  * Creates a menu item node.
  * @param item - The item to create the item node for.
- * @param close - The function to close the menu.
- * @param openSubmenuPanel - The function to open the submenu panel.
- * @param scheduleSubmenuOpen - The function to schedule the submenu open.
- * @param scheduleSubmenuClose - The function to schedule the submenu close.
- * @param onHoverFocus - The function to handle the hover focus.
- * @param onEnterParentItem - The function to handle the enter parent item.
- * @param submenuArrowConfig - The configuration for the submenu arrow.
- * @param refreshContent - The function to refresh the content.
- * @param onItemHoverCallback - The function to handle the item hover callback.
- * @param getSpinnerOptions - The function to get the spinner options.
- * @param shortcutIcons - The icons for the shortcut.
- * @param platform - The platform.
- * @param clearRovingFocus - The function to clear the roving focus.
- * @returns The menu item node.
+ * @param context - The context (close, open callbacks, options).
+ * @returns The menu item node, or null if not visible.
  */
-export function createItemNode(
-  item: MenuItem,
-  close: (selectedItem?: MenuItem) => void,
-  openSubmenuPanel: (item: MenuItemSubmenu, el: HTMLElement) => void,
-  scheduleSubmenuOpen?: (sub: MenuItemSubmenu, el: HTMLElement) => void,
-  scheduleSubmenuClose?: (triggerEl: HTMLElement) => void,
-  onHoverFocus?: (el: HTMLElement) => void,
-  onEnterParentItem?: (el: HTMLElement) => void,
-  submenuArrowConfig?: SubmenuArrowConfig | null,
-  refreshContent?: () => void,
-  onItemHoverCallback?: (item: MenuItem, nativeEvent: MouseEvent | FocusEvent) => void,
-  getSpinnerOptions?: (item: MenuItem) => SpinnerConfig,
-  shortcutIcons?: Record<string, string | HTMLElement>,
-  platform?: "mac" | "win" | "auto",
-  clearRovingFocus?: (menuEl: HTMLElement | null) => void
-): HTMLElement | null {
-  const arrowConfig = submenuArrowConfig ?? null;
+export function createItemNode(item: MenuItem, context: ItemNodeContext): HTMLElement | null {
+  const arrowConfig = context.submenuArrowConfig ?? null;
+  const {
+    close,
+    openSubmenuPanel,
+    scheduleSubmenuOpen,
+    scheduleSubmenuClose,
+    onHoverFocus,
+    onEnterParentItem,
+    refreshContent,
+    onItemHover: onItemHoverCallback,
+    getSpinnerOptions,
+    shortcutIcons,
+    platform,
+    clearRovingFocus,
+  } = context;
   if ("visible" in item && item.visible === false) return null;
 
   if (item.type === "separator") {

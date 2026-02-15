@@ -2,7 +2,7 @@ import type { CloseContext, ContextMenuState } from "../lib/types.js";
 import { ROOT } from "../lib/constants.js";
 import { OPEN_MENU_INSTANCES } from "../lib/instances.js";
 import { setStyles } from "../utils/index.js";
-import { runAfterLeaveAnimation } from "./animation.js";
+import { getLeaveDurationMs, runAfterLeaveAnimation } from "./animation.js";
 import { enableScrollLock, disableScrollLock } from "./scroll-lock.js";
 import { closeSubmenuWithAnimation } from "./submenu.js";
 
@@ -53,17 +53,13 @@ export function realClose(state: ContextMenuState): Promise<void> {
       if (state.openSubmenus.length > 0) {
         const toClose = state.openSubmenus.slice();
         state.openSubmenus.length = 0;
-        let idx = toClose.length - 1;
-        const closeNext = (): void => {
-          if (idx < 0) {
-            _performRootClose(state);
-            return;
-          }
-          const { panel, trigger } = toClose[idx];
-          idx--;
-          closeSubmenuWithAnimation(panel, trigger, state, { clearOpenSubmenu: false, onDone: closeNext });
-        };
-        closeNext();
+        let next: () => void = () => _performRootClose(state);
+        for (let i = toClose.length - 1; i >= 0; i--) {
+          const { panel, trigger } = toClose[i];
+          const prev = next;
+          next = () => closeSubmenuWithAnimation(panel, trigger, state, { clearOpenSubmenu: false, onDone: prev });
+        }
+        next();
         return;
       }
       _performRootClose(state);
@@ -92,12 +88,10 @@ function _onFullyClosed(state: ContextMenuState): void {
  * @returns The function to cancel the leave animation.
  */
 function _performRootClose(state: ContextMenuState): void {
-  const anim = state.currentConfig.animation;
-  const rawLeave = anim?.leave ?? 80;
-  const leaveMs: number = anim?.disabled ? 0 : (typeof rawLeave === "number" ? rawLeave : rawLeave.duration);
+  const leaveMs = getLeaveDurationMs(state.currentConfig.animation);
   const closeContext: CloseContext = { selectedItem: state.lastSelectedItem, anchor: state.lastAnchor };
 
-  if (leaveMs > 0 && !anim?.disabled) {
+  if (leaveMs > 0) {
     state.root.classList.remove(ROOT.OPEN_CLASS);
     state.root.classList.add(ROOT.LEAVE_CLASS);
     const onEnd = (): void => {

@@ -15,6 +15,7 @@ export const SUBMENU_HOVER_DELAY_MS = 200;
 export const SUBMENU_CLOSE_DELAY_MS = 150;
 export const DEFAULT_LONG_PRESS_MS = 500;
 export const LEAVE_ANIMATION_SAFETY_MS = 50;
+export const DEFAULT_LEAVE_MS = 80;
 export const DEFAULT_SPINNER_SPEED_MS = 600;
 
 export const CLASSES = {
